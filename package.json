@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "start:dev": "nodemon index.js"
+    "start:dev": "nodemon index.js",
+    "build": "npm install --production && npm cache clean --force",
+    "serve": "pm2 start index.js --name 'my-app'",
+    "stop": "pm2 stop my-app",
+    "lint": "eslint ."
   },
   "author": "",
   "license": "ISC",
