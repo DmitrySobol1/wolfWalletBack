@@ -34,31 +34,31 @@ app.get('/api', (req, res) => {
 });
 
 // вход пользователя в аппку
-// app.post('/enter', async (req, res) => {
-//   try {
-//     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+app.post('/api/enter', async (req, res) => {
+  try {
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
-//     //создание юзера
-//     if (!user) {
-//       await createNewUser(req.body.tlgid);
-//       const userData = { result: 'showOnboarding' };
-//       // return res.json({ result: 'showOnboarding' });
-//       return res.json({ userData });
-//     }
+    //создание юзера
+    if (!user) {
+      await createNewUser(req.body.tlgid);
+      const userData = { result: 'showOnboarding' };
+      // return res.json({ result: 'showOnboarding' });
+      return res.json({ userData });
+    }
 
-//     // извлечь инфо о юзере из БД и передать на фронт действие
-//     const { _id, ...userData } = user._doc;
-//     userData.result = 'showWalletPage';
-//     return res.json({ userData });
+    // извлечь инфо о юзере из БД и передать на фронт действие
+    const { _id, ...userData } = user._doc;
+    userData.result = 'showWalletPage';
+    return res.json({ userData });
 
-//        // return res.json({ result: 'showFirstScreen' });
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).json({
-//       message: 'ошибка сервера',
-//     });
-//   }
-// });
+       // return res.json({ result: 'showFirstScreen' });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
 
 
 
@@ -117,7 +117,7 @@ async function createNewUser(tlgid) {
 }
 
 // получение баланса пользователя
-app.post('/get_user_balance', async (req, res) => {
+app.post('/api/get_user_balance', async (req, res) => {
   try {
     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
     const { ...userData } = user._doc;
@@ -220,7 +220,7 @@ async function getCryptoPrices() {
 }
 
 // получение из nowpayments монет, одобренных в ЛК
-app.get('/get_available_coins', async (req, res) => {
+app.get('/api/get_available_coins', async (req, res) => {
   try {
     const response = await axios.get(
       'https://api.nowpayments.io/v1/merchant/coins',
