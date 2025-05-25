@@ -62,7 +62,8 @@ app.get('/', (req, res) => {
 
 // вход пользователя в аппку
 app.post('/enter', (req, res) => {
-  console.log('you are entered')
+  console.log('you are entered', req.body.tlgid)
+  return res.json('hello');
 });
 
 
