@@ -34,31 +34,41 @@ app.get('/', (req, res) => {
 });
 
 // вход пользователя в аппку
-app.post('/enter', async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+// app.post('/enter', async (req, res) => {
+//   try {
+//     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
-    //создание юзера
-    if (!user) {
-      await createNewUser(req.body.tlgid);
-      const userData = { result: 'showOnboarding' };
-      // return res.json({ result: 'showOnboarding' });
-      return res.json({ userData });
-    }
+//     //создание юзера
+//     if (!user) {
+//       await createNewUser(req.body.tlgid);
+//       const userData = { result: 'showOnboarding' };
+//       // return res.json({ result: 'showOnboarding' });
+//       return res.json({ userData });
+//     }
 
-    // извлечь инфо о юзере из БД и передать на фронт действие
-    const { _id, ...userData } = user._doc;
-    userData.result = 'showWalletPage';
-    return res.json({ userData });
+//     // извлечь инфо о юзере из БД и передать на фронт действие
+//     const { _id, ...userData } = user._doc;
+//     userData.result = 'showWalletPage';
+//     return res.json({ userData });
 
-       // return res.json({ result: 'showFirstScreen' });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
+//        // return res.json({ result: 'showFirstScreen' });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
+
+// вход пользователя в аппку
+app.post('/enter', (req, res) => {
+  console.log('you are entered')
 });
+
+
+
+
+
 
 async function createNewUser(tlgid) {
   try {
