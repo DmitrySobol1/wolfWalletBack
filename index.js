@@ -29,12 +29,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.get('/api', (req, res) => {
+app.get('/', (req, res) => {
   res.send('hello man 88');
 });
 
 // вход пользователя в аппку
-app.post('/api/enter', async (req, res) => {
+app.post('/enter', async (req, res) => {
   try {
     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
