@@ -241,7 +241,7 @@ app.get('/api/get_available_coins', async (req, res) => {
 });
 
 // смена валюты в БД
-app.post('/change_valute', async (req, res) => {
+app.post('/api/change_valute', async (req, res) => {
   await UserModel.findOneAndUpdate(
     { tlgid: req.body.tlgid },
     { $set: { valute: req.body.valute } }
@@ -251,7 +251,7 @@ app.post('/change_valute', async (req, res) => {
 });
 
 // смена языка в БД
-app.post('/change_language', async (req, res) => {
+app.post('/api/change_language', async (req, res) => {
   await UserModel.findOneAndUpdate(
     { tlgid: req.body.tlgid },
     { $set: { language: req.body.language } }
@@ -261,7 +261,7 @@ app.post('/change_language', async (req, res) => {
 });
 
 // получение информации, чтобы вернуть адресс и мин сумму пополнения, создать ЛК юзера в NP ?
-app.post('/get_info_for_payinadress', async (req, res) => {
+app.post('/api/get_info_for_payinadress', async (req, res) => {
   try {
     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
     const { ...userData } = user._doc;
@@ -442,7 +442,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
 }
 
 // получение баланса юзера, для вывода в "пополнить"
-app.get('/get_balance_for_pay_out', async (req, res) => {
+app.get('/api/get_balance_for_pay_out', async (req, res) => {
   try {
     // const tlgid = req.query.tlgid
 
@@ -473,7 +473,7 @@ app.get('/get_balance_for_pay_out', async (req, res) => {
 });
 
 // проверка валидности адреса кошелька
-app.post('/validate_adress', async (req, res) => {
+app.post('/api/validate_adress', async (req, res) => {
   try {
     const validateResult = await validateAdress(req.body.adress, req.body.coin);
 
@@ -524,7 +524,7 @@ async function validateAdress(adress, coin) {
 }
 
 //сохранить новую комиссию за вывод
-app.post('/save_new_comission', async (req, res) => {
+app.post('/api/save_new_comission', async (req, res) => {
   const doc = new ComissionToPayoutModel({
     qty: 1,
     coin: 'btc',
@@ -534,7 +534,7 @@ app.post('/save_new_comission', async (req, res) => {
 });
 
 // получить сумму комиссий
-app.get('/get_comission', async (req, res) => {
+app.get('/api/get_comission', async (req, res) => {
   try {
     const comission = await ComissionToPayoutModel.findOne({
       coin: req.query.coin,
@@ -551,7 +551,7 @@ app.get('/get_comission', async (req, res) => {
 });
 
 //создать запрос на вывод монет (перевод с юзер счета на мастер счет)
-app.post('/rqst_to_payout', async (req, res) => {
+app.post('/api/rqst_to_payout', async (req, res) => {
   try {
     const token = await getTokenFromNowPayment();
 
