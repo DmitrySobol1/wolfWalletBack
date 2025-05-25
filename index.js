@@ -29,7 +29,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('hello man 88');
 });
 
@@ -62,7 +62,7 @@ app.get('/', (req, res) => {
 
 
 
-app.get('/gettest', async (req, res) => {
+app.get('/api/gettest', async (req, res) => {
   try {
   res.send('GET done from server');
   } catch (err) {
@@ -74,7 +74,12 @@ app.get('/gettest', async (req, res) => {
 });
 
 
-app.post('/posttest', async (req, res) => {
+app.get('/api/gettest2', (req, res) => {
+  res.send('hello man 88');
+});
+
+
+app.post('/api/posttest', async (req, res) => {
   try {
   res.send('POST done from server');
   } catch (err) {
