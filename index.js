@@ -60,11 +60,31 @@ app.get('/', (req, res) => {
 //   }
 // });
 
-// вход пользователя в аппку
-app.post('/enter', (req, res) => {
-  console.log('you are entered', req.body.tlgid)
-  return res.json('hello');
+
+
+app.get('/gettest', async (req, res) => {
+  try {
+  res.send('GET done from server');
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
 });
+
+
+app.post('/posttest', async (req, res) => {
+  try {
+  res.send('POST done from server');
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
 
 
 
