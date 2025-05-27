@@ -1,5 +1,8 @@
+// import dotenv from 'dotenv';
+// dotenv.config();
+
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '/root/wolfwallet/wolfWalletBack' });
 
 
 import mongoose from 'mongoose';

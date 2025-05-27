@@ -1,6 +1,9 @@
 import cron from 'node-cron';
 import { executeCheckTask } from './task.js';
 
+import dotenv from 'dotenv';
+dotenv.config({ path: '/root/wolfwallet/wolfWalletBack' });
+
 
 //Сценарий, для проверки, прошел ли трансфер со счета клиента на мастер кошелек
 
@@ -23,4 +26,4 @@ cron.schedule(
   }
 );
 
-console.log('⏰ Планировщик задач инициализирован');
+console.log('⏰ Планировщик задач инициализирован, check port=',process.env.PORT);
