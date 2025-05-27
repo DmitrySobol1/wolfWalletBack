@@ -4,6 +4,7 @@ import UserModel from './models/user.js';
 import ComissionToPayoutModel from './models/comissionToPayout.js';
 import RqstTrtFromUserToMainModel from './models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from './models/verifiedPayouts.js';
+import crypto from 'crypto';
 
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -51,7 +52,7 @@ app.post('/api/enter', async (req, res) => {
     userData.result = 'showWalletPage';
     return res.json({ userData });
 
-       // return res.json({ result: 'showFirstScreen' });
+    // return res.json({ result: 'showFirstScreen' });
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -59,12 +60,10 @@ app.post('/api/enter', async (req, res) => {
     });
   }
 });
-
-
 
 app.get('/api/gettest', async (req, res) => {
   try {
-  res.send('GET done from server');
+    res.send('GET done from server');
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -72,16 +71,14 @@ app.get('/api/gettest', async (req, res) => {
     });
   }
 });
-
 
 app.get('/api/gettest2', (req, res) => {
   res.send('hello man 88');
 });
 
-
 app.post('/api/posttest', async (req, res) => {
   try {
-  res.send('POST done from server');
+    res.send('POST done from server');
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -89,12 +86,6 @@ app.post('/api/posttest', async (req, res) => {
     });
   }
 });
-
-
-
-
-
-
 
 async function createNewUser(tlgid) {
   try {
@@ -125,7 +116,6 @@ app.post('/api/get_user_balance', async (req, res) => {
     const nowpaymentid = userData.nowpaymentid;
     const language = userData.language;
 
-    
     const valute = userData.valute;
 
     if (userData.nowpaymentid === 0) {
@@ -320,8 +310,6 @@ async function getTokenFromNowPayment() {
 
   return response.data.token;
 }
-
-
 
 async function getMinAmountForDeposit(coin) {
   const response = await axios.get(
@@ -607,8 +595,6 @@ app.post('/api/rqst_to_payout', async (req, res) => {
     });
     throw new Error(`Error adress: ${error.message}`);
   }
-
-  
 });
 
 async function createRqstTrtFromuserToMain(
@@ -635,176 +621,72 @@ async function createRqstTrtFromuserToMain(
   }
 }
 
-// СТАРТ ===============================================================
+app.post('/api/webhook', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук:', payload);
 
-// app.get('/test', (req, res) => {
-//   async function executeCheckTask() {
-//     console.log('Начинаю cron...');
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
 
-//     const records = await RqstTrtFromUserToMainModel.find({
-//       status: 'new',
-//     }).exec();
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
+        
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
 
-//     console.log('step 1 | records=', records);
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
 
-//     const token = await getBearerToken();
+    // 4. Безопасное сравнение подписей
+    if (!crypto.timingSafeEqual(
+      Buffer.from(receivedSignature), 
+      Buffer.from(expectedSignature)
+    )) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
 
-//     console.log('step 2 | token=', token);
+    console.log('Подписи совпадают');
+    
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      await processWebhook(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
 
-//     for (const item of records) {
-//       const requestData = {
-//         ipn_callback_url: 'https://nowpayments.io',
-//         withdrawals: [
-//           {
-//             address: item.adress,
-//             currency: item.coin,
-//             amount: item.qty,
-//             ipn_callback_url: 'https://nowpayments.io',
-//           },
-//         ],
-//       };
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
-//       const createPayoutResult = await createpayout(requestData, token);
-
-//       const batch_withdrawal_id = createPayoutResult.id;
-//       const payout_id = createPayoutResult.withdrawals[0].id;
-
-//       console.log('step 3 | withdrawal_id=', batch_withdrawal_id);
-
-//       const code2fa = await create2FAcode();
-//       console.log('step 4 | code2fa=', code2fa);
-
-//       const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
-//       console.log('step 5 | verify=', verify);
-
-//       if (verify === 'OK') {
-//         const status = 'creating';
-
-//         await createVerifiedPayout(
-//           payout_id,
-//           batch_withdrawal_id,
-//           item.coin,
-//           item.qty,
-//           status,
-//           item.userIdAtNP,
-//           item.adress
-//         );
-//         console.log('step 6 | new obj created');
-
-//         await RqstTrtFromUserToMainModel.findOneAndUpdate(
-//           { transactionId: item.transactionId },
-//           { $set: { status: 'operated' } }
-//           // { new: true } // Вернуть обновленную запись
-//         );
-//       }
-
-//       return res.json({ success: true });
-//     }
-//   }
-
-//   executeCheckTask();
-// });
-
-// // ДОП ФУНКЦИИ ДЛЯ CRON ФУНКЦИИ ==================================
-
-// //получить bearer token
-// async function getBearerToken() {
-//   const response = await axios.post(
-//     'https://api.nowpayments.io/v1/auth',
-//     {
-//       email: process.env.NOWPAYMENTSEMAIL,
-//       password: process.env.NOWPAYMENTSPASSWD,
-//     },
-//     {
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//     }
-//   );
-//   return response.data.token;
-// }
-
-// //создать payout
-// async function createpayout(requestData, token) {
-//   const response = await axios.post(
-//     'https://api.nowpayments.io/v1/payout',
-//     requestData,
-//     {
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//         'x-api-key': process.env.NOWPAYMENTSAPI,
-//         'Content-Type': 'application/json',
-//       },
-//     }
-//   );
-//   // return response.data.id;
-//   return response.data;
-// }
-
-// //создать 2FA код
-// async function create2FAcode() {
-//   try {
-//     const secret_key = process.env.TWOFACODE;
-
-//     const code = speakeasy.totp({
-//       secret: secret_key,
-//       encoding: 'base32',
-//     });
-
-//     return code;
-//   } catch (error) {
-//     console.error(error);
-//     return res.status(500).json({ message: 'Ошибка при создании кода.' });
-//   }
-// }
-
-// //верифицировать payout
-// async function verifyPayout(withdrawal_id, code2fa, token) {
-//   const response = await axios.post(
-//     `https://api.nowpayments.io/v1/payout/${withdrawal_id}/verify`,
-//     {
-//       verification_code: code2fa,
-//     },
-//     {
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//         'x-api-key': process.env.NOWPAYMENTSAPI,
-//         'Content-Type': 'application/json',
-//       },
-//     }
-//   );
-//   return response.data;
-// }
-
-// // создать новый объект в verified payouts
-// async function createVerifiedPayout(
-//   payout_id,
-//   batch_withdrawal_id,
-//   coin,
-//   qty,
-//   status,
-//   userIdAtNP,
-//   adress
-// ) {
-//   try {
-//     const rqst = new VerifiedPayoutsModel({
-//       payout_id,
-//       batch_withdrawal_id,
-//       coin,
-//       qty,
-//       status,
-//       userIdAtNP,
-//       adress,
-//     });
-
-//     const user = await rqst.save();
-//     return 'created';
-//   } catch (err) {
-//     console.log(err);
-//   }
-// }
-
-// ====================================================================
+// Асинхронная функция обработки
+async function processWebhook(payload) {
+  console.log('Обрабатываю:', payload);
+  // Реальная логика обработки...
+}
 
 app.listen(PORT, (err) => {
   if (err) {
