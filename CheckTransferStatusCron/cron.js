@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { executeCheckTask } from './task.js';
 
 import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack' });
+dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 
 //Сценарий, для проверки, прошел ли трансфер со счета клиента на мастер кошелек
