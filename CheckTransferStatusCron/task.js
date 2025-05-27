@@ -108,7 +108,8 @@ mongoose
 
       }
 
-      return res.json({ success: true });
+      // return res.json({ success: true });
+      return ({ success: true });
     }
   }
 
