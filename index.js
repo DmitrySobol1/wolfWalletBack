@@ -452,18 +452,44 @@ async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
   }
 }
 
-// получение баланса юзера, для вывода в "пополнить"
+//TODO:
+// получение баланса юзера, для вывода в "пополнить" и на странице wallet tab активы
 app.get('/api/get_balance_for_pay_out', async (req, res) => {
   try {
-    // const tlgid = req.query.tlgid
+    const tlgid = req.query.tlgid
+    // const tlgid = req.body.tlgid;
 
-    const user = await UserModel.findOne({ tlgid: req.query.tlgid });
+    const user = await UserModel.findOne({ tlgid: tlgid });
+    const valute = user.valute;
+
+    // console.log('step 1');
+    // console.log('user=', user);
+    // console.log('valute', valute);
+    // // return res.json('ok1');
 
     if (user) {
       const nowpaymentid = user._doc.nowpaymentid;
+
+      // const response = await axios.get(
+      //   `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
+
+      //   {
+      //     headers: {
+      //       'x-api-key': process.env.NOWPAYMENTSAPI,
+      //     },
+      //   }
+      // );
+
+      // =============
+
+      let cryptoPrices = await getCryptoPrices();
+
+      // console.log('step 2');
+      // console.log('cryptoPrices', cryptoPrices);
+      // // return res.json('ok2');
+
       const response = await axios.get(
         `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
-
         {
           headers: {
             'x-api-key': process.env.NOWPAYMENTSAPI,
@@ -471,7 +497,69 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
         }
       );
 
-      return res.json(response.data);
+      const userBalance = response.data.result.balances;
+      
+      // console.log('step 3');
+      // console.log('response=', response.data.result);
+      // return res.json('ok3');
+
+      // Преобразовываем объект в массив объектов
+      const arrayOfUserBalance = Object.entries(userBalance).map(
+        ([key, value]) => ({
+          currency: key, // кладем ключ внутрь объекта
+          ...value, // распаковываем остальные свойства
+        })
+      );
+
+      console.log('step 4');
+      console.log('arrayOfUserBalance=', arrayOfUserBalance);
+      // return res.json('ok4');
+
+      let fiatKoefficient = 1;
+      let symbol = '$';
+      if (valute === 'eur') {
+        fiatKoefficient = await Convert(1).from('USD').to('EUR');
+        symbol = '€';
+      } else if (valute === 'rub') {
+        fiatKoefficient = await Convert(1).from('USD').to('RUB');
+        symbol = '₽';
+      }
+
+      const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance.map((item) => {
+  const matchingPrice = cryptoPrices.find(
+    (price) => item.currency.toLowerCase() === price.symbol.toLowerCase()
+  );
+
+  const amount = item.amount != null ? parseFloat(item.amount) : 0;
+  const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
+  const fiatK = parseFloat(fiatKoefficient) || 0;
+
+  if (amount > 0) {
+    const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
+    const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(2);
+
+    return {
+      currency: item.currency,
+      amount: amount,
+      price_usd: priceUsd,
+      priceAllCoinInUsd: priceAllCoinInUsd,
+      priceAllCoinInUserFiat: priceAllCoinInUserFiat,
+      symbol: symbol,
+    };
+  }
+  return null; // или return {};
+}).filter(Boolean); // Удаляет null/undefined из массива;
+
+      // console.log('step 5');
+      // console.log('arrayOfUserBalanceWithUsdPrice=', arrayOfUserBalanceWithUsdPrice);
+      // return res.json('ok5');
+      // =================
+
+      // TODO: проверить верность подсчета коэффициента
+
+      
+
+      return res.json({ arrayOfUserBalanceWithUsdPrice });
     } else {
       console.log('такого нет');
     }
@@ -713,7 +801,7 @@ app.post('/api/webhook', async (req, res) => {
 async function processWebhookPayout(payload) {
   console.log('Обрабатываю:', payload);
 
-  const statusLowerLetter = payload.status.toLowerCase()
+  const statusLowerLetter = payload.status.toLowerCase();
 
   const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
     { batch_withdrawal_id: payload.batch_withdrawal_id },
