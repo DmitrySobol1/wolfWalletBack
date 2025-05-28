@@ -804,18 +804,18 @@ app.post('/api/webhook_payin', async (req, res) => {
 async function processWebhookPayin(payload) {
   console.log('Обрабатываю payin:');
 
-  const statusLowerLetter = payload.payment_status.toLowerCase()
+  // const statusLowerLetter = payload.payment_status.toLowerCase()
 
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
-    { $set: { status: statusLowerLetter } }
+    { $set: { status: payload.payment_status.toLowerCase() } }
   );
 
-  console.log('Статус payin=', payload.status.toLowerCase());
+  console.log('Статус payin=', payload.payment_status.toLowerCase());
 
-  const uslovie = payload.status.toLowerCase()
+  // const uslovie = payload.status.toLowerCase()
 
-  if (uslovie === 'finished') {
+  if (payload.payment_status.toLowerCase() === 'finished') {
     const userFromRqstBase = await RqstPayInModel.findOne({
       payment_id: payload.payment_id,
     });
