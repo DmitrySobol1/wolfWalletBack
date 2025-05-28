@@ -420,6 +420,8 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       throw new Error('Invalid response structure from NowPayments API');
     }
 
+    //FIXME: 
+    console.log('запрос на ввод сформирован',response.data)
     return response.data.result.pay_address;
   } catch (error) {
     console.error('Error in createUserInNowPayment:', {
@@ -676,7 +678,7 @@ app.post('/api/webhook', async (req, res) => {
       res.status(200).json({ status: 'success' });
       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
 
-      await processWebhook(payload);
+      await processWebhookPayout(payload);
     } catch (processError) {
       console.error('Ошибка обработки:', processError);
       res.status(500).json({ error: 'Processing failed' });
@@ -687,8 +689,8 @@ app.post('/api/webhook', async (req, res) => {
   }
 });
 
-// Асинхронная функция обработки
-async function processWebhook(payload) {
+// функция обработки payout
+async function processWebhookPayout(payload) {
   console.log('Обрабатываю:', payload);
 
   const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
@@ -741,65 +743,89 @@ app.post('/api/webhook_payin', async (req, res) => {
     const payload = req.body;
     console.log('Получен вебхук payin:', payload);
 
-    // // 1. Проверяем обязательный заголовок
-    // const receivedSignature = req.headers['x-nowpayments-sig'];
-    // if (!receivedSignature) {
-    //   console.log('Отсутствует заголовок подписи');
-    //   return res.status(400).json({ error: 'Missing signature header' });
-    // }
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
 
-    // // 2. Безопасная сортировка объекта
-    // const safeSort = (obj) => {
-    //   const seen = new WeakSet();
-    //   const sort = (obj) => {
-    //     if (obj !== Object(obj)) return obj;
-    //     if (seen.has(obj)) return '[Circular]';
-    //     seen.add(obj);
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
 
-    //     return Object.keys(obj)
-    //       .sort()
-    //       .reduce((result, key) => {
-    //         result[key] = sort(obj[key]);
-    //         return result;
-    //       }, {});
-    //   };
-    //   return sort(obj);
-    // };
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
 
-    // // 3. Генерация и проверка подписи
-    // const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
-    // hmac.update(JSON.stringify(safeSort(payload)));
-    // const expectedSignature = hmac.digest('hex');
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
 
-    // // 4. Безопасное сравнение подписей
-    // if (
-    //   !crypto.timingSafeEqual(
-    //     Buffer.from(receivedSignature),
-    //     Buffer.from(expectedSignature)
-    //   )
-    // ) {
-    //   console.log('Неверная подпись');
-    //   return res.status(403).json({ error: 'Invalid signature' });
-    // }
+    // 4. Безопасное сравнение подписей
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
 
-    // console.log('Подписи совпадают');
+    console.log('Подписи совпадают');
 
-    // // 5. Обработка вебхука (с обработкой ошибок)
-    // try {
-    //   res.status(200).json({ status: 'success' });
-    //   //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      //TODO: добавить логику, если приходят остальные статусы - как то оповещать юзера
 
-    //   // await processWebhook(payload);
-    // } catch (processError) {
-    //   console.error('Ошибка обработки:', processError);
-    //   res.status(500).json({ error: 'Processing failed' });
-    // }
+      // await processWebhookPayin(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
   } catch (error) {
     console.error('Ошибка обработки вебхука:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
+
+//FIXME:
+// функция обработки payIn
+// async function processWebhookPayin(payload) {
+//   console.log('Обрабатываю payin:', payload);
+
+//   const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
+//     { batch_withdrawal_id: payload.batch_withdrawal_id },
+//     { $set: { status: payload.status.toLowerCase() } }
+//   );
+
+//   console.log('Статус=', payload.status.toLowerCase());
+
+//   if (payload.status.toLowerCase() === 'finished') {
+//     const foundUser = await UserModel.findOne({
+//       nowpaymentid: updatedItem.userIdAtNP,
+//     });
+//     const language = foundUser.language;
+//     const tlgid = foundUser.tlgid
+//     console.log('переход к функции сенд мсг')
+//     sendTlgMessage(tlgid,language)
+
+//   }
+// }
 
 
 
