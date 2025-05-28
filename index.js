@@ -713,9 +713,11 @@ app.post('/api/webhook', async (req, res) => {
 async function processWebhookPayout(payload) {
   console.log('Обрабатываю:', payload);
 
+  const statusLowerLetter = payload.status.toLowerCase()
+
   const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
     { batch_withdrawal_id: payload.batch_withdrawal_id },
-    { $set: { status: payload.status.toLowerCase() } }
+    { $set: { status: statusLowerLetter } }
   );
 
   console.log('Статус=', payload.status.toLowerCase());
@@ -802,14 +804,18 @@ app.post('/api/webhook_payin', async (req, res) => {
 async function processWebhookPayin(payload) {
   console.log('Обрабатываю payin:');
 
+  const statusLowerLetter = payload.payment_status.toLowerCase()
+
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
-    { $set: { status: payload.payment_status.toLowerCase() } }
+    { $set: { status: statusLowerLetter } }
   );
 
   console.log('Статус payin=', payload.status.toLowerCase());
 
-  if (payload.status.toLowerCase() === 'finished') {
+  const uslovie = payload.status.toLowerCase()
+
+  if (uslovie === 'finished') {
     const userFromRqstBase = await RqstPayInModel.findOne({
       payment_id: payload.payment_id,
     });
