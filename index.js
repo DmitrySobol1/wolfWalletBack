@@ -941,6 +941,119 @@ function sendTlgMessage(tlgid, language, type) {
     });
 }
 
+
+//статистика пополнения баланса
+app.get('/api/get_my_payin', async (req, res) => {
+  try {
+    if (!req.query.tlgid) {
+      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+    }
+
+    const payins = await RqstPayInModel.find({
+      payment_status: 'finished',
+      tlgid: req.query.tlgid
+    }).sort({ updatedAt: -1 }).lean();
+
+    if (!payins || payins.length === 0) {
+      return res.status(404).json({ status: 'no' });
+    }
+
+    const months = [
+      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
+      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    ];
+
+    
+    const processedPayins = payins.map(item => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      
+      // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
+      return {
+        ...item,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`
+      };
+    });
+
+    return res.status(200).json({ 
+      status: 'ok',
+      count: processedPayins.length,
+      data: processedPayins 
+    });
+    
+  } catch (err) {
+    console.error('Ошибка в /api/get_my_payin:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера'
+    });
+  }
+});
+
+
+//статистика вывода с баланса
+app.get('/api/get_my_payout', async (req, res) => {
+  try {
+
+const tlgid = req.query.tlgid
+
+    if (!tlgid) {
+      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+    }
+
+    const user = await UserModel.findOne({ tlgid: tlgid });
+    const { ...userData } = user._doc;
+
+    const nowpaymentid = userData.nowpaymentid;
+
+    const payouts = await VerifiedPayoutsModel.find({
+      status: 'finished',
+      userIdAtNP: nowpaymentid
+    }).sort({ updatedAt: -1 }).lean();
+
+    if (!payouts || payouts.length === 0) {
+      return res.status(404).json({ status: 'no' });
+    }
+
+    const months = [
+      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
+      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    ];
+
+    
+    const processedPayouts = payouts.map(item => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      
+      // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
+      return {
+        ...item,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`
+      };
+    });
+
+    return res.status(200).json({ 
+      status: 'ok',
+      count: processedPayouts.length,
+      data: processedPayouts 
+    });
+    
+  } catch (err) {
+    console.error('Ошибка в /api/get_my_payout:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера'
+    });
+  }
+});
+
+
 app.listen(PORT, (err) => {
   if (err) {
     return console.log(err);
