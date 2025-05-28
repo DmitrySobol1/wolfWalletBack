@@ -4,6 +4,7 @@ import UserModel from './models/user.js';
 import ComissionToPayoutModel from './models/comissionToPayout.js';
 import RqstTrtFromUserToMainModel from './models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from './models/verifiedPayouts.js';
+import RqstPayInModel from './models/rqstPayIn.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -278,7 +279,8 @@ app.post('/api/get_info_for_payinadress', async (req, res) => {
       token,
       req.body.coin,
       minAmount,
-      userData.nowpaymentid
+      userData.nowpaymentid,
+      req.body.tlgid
     );
 
     const objToFront = {
@@ -369,7 +371,7 @@ async function createUserInNowPayment(token, tlgid) {
   }
 }
 
-async function createPayAdress(token, coin, minAmount, nowpaymentid) {
+async function createPayAdress(token, coin, minAmount, nowpaymentid, tlgid) {
   try {
     // 1. Валидация входных параметров
     if (!token || typeof token !== 'string') {
@@ -420,8 +422,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       throw new Error('Invalid response structure from NowPayments API');
     }
 
-    //FIXME: 
-    console.log('запрос на ввод сформирован',response.data)
+    await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
     return response.data.result.pay_address;
   } catch (error) {
     console.error('Error in createUserInNowPayment:', {
@@ -429,6 +430,25 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       status: error.response?.status,
     });
     throw new Error(`Failed to create user: ${error.message}`);
+  }
+}
+
+//создать запись в БД о новом запросе на ввод
+async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
+  try {
+    const doc = new RqstPayInModel({
+      payment_id: params.payment_id,
+      payment_status: params.payment_status,
+      pay_amount: params.pay_amount,
+      price_currency: params.price_currency,
+      userIdAtNP: nowpaymentid,
+      amount_received: params.amount_received,
+      tlgid: tlgid,
+    });
+
+    const rqst = await doc.save();
+  } catch (err) {
+    console.log(err);
   }
 }
 
@@ -689,7 +709,7 @@ app.post('/api/webhook', async (req, res) => {
   }
 });
 
-// функция обработки payout
+// функция обработки вывод средств (payout)
 async function processWebhookPayout(payload) {
   console.log('Обрабатываю:', payload);
 
@@ -705,37 +725,12 @@ async function processWebhookPayout(payload) {
       nowpaymentid: updatedItem.userIdAtNP,
     });
     const language = foundUser.language;
-    const tlgid = foundUser.tlgid
-    console.log('переход к функции сенд мсг')
-    sendTlgMessage(tlgid,language)
-
+    const tlgid = foundUser.tlgid;
+    console.log('переход к функции сенд мсг');
+    const type = 'payout';
+    sendTlgMessage(tlgid, language, type);
   }
 }
-
-
-function sendTlgMessage(tlgid, language) {
-  const { title, text } = TEXTS[language];
-  // const sendingText = TEXTS[language].text;
-  const params = `?chat_id=${tlgid}&text=${title}%0A${text}`;
-  const url = baseurl + params;
-
-  https
-    .get(url, (response) => {
-      let data = '';
-
-       // Когда запрос завершён
-      response.on('end', () => {
-        console.log(JSON.parse(data)); // Выводим результат
-      });
-    })
-    .on('error', (err) => {
-      console.error('Ошибка:', err);
-    });
-}
-
-
-
-
 
 // для обработки "ввода" средств
 app.post('/api/webhook_payin', async (req, res) => {
@@ -791,7 +786,7 @@ app.post('/api/webhook_payin', async (req, res) => {
       res.status(200).json({ status: 'success' });
       //TODO: добавить логику, если приходят остальные статусы - как то оповещать юзера
 
-      // await processWebhookPayin(payload);
+      await processWebhookPayin(payload);
     } catch (processError) {
       console.error('Ошибка обработки:', processError);
       res.status(500).json({ error: 'Processing failed' });
@@ -802,39 +797,55 @@ app.post('/api/webhook_payin', async (req, res) => {
   }
 });
 
-
 //FIXME:
-// функция обработки payIn
-// async function processWebhookPayin(payload) {
-//   console.log('Обрабатываю payin:', payload);
+// функция обработки payIn со статусом finished
+async function processWebhookPayin(payload) {
+  console.log('Обрабатываю payin:');
 
-//   const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
-//     { batch_withdrawal_id: payload.batch_withdrawal_id },
-//     { $set: { status: payload.status.toLowerCase() } }
-//   );
+  const updatedItem = await RqstPayInModel.findOneAndUpdate(
+    { payment_id: payload.payment_id },
+    { $set: { status: payload.payment_status.toLowerCase() } }
+  );
 
-//   console.log('Статус=', payload.status.toLowerCase());
+  console.log('Статус payin=', payload.status.toLowerCase());
 
-//   if (payload.status.toLowerCase() === 'finished') {
-//     const foundUser = await UserModel.findOne({
-//       nowpaymentid: updatedItem.userIdAtNP,
-//     });
-//     const language = foundUser.language;
-//     const tlgid = foundUser.tlgid
-//     console.log('переход к функции сенд мсг')
-//     sendTlgMessage(tlgid,language)
+  if (payload.status.toLowerCase() === 'finished') {
+    const userFromRqstBase = await RqstPayInModel.findOne({
+      payment_id: payload.payment_id,
+    });
+    const tlgid = userFromRqstBase.tlgid;
 
-//   }
-// }
+    const userFromUserBase = await UserModel.findOne({
+      tlgid: tlgid,
+    });
 
+    const language = userFromUserBase.language;
+    const type = 'payin';
+    console.log('переход к функции сенд мсг');
+    sendTlgMessage(tlgid, language, type);
+  }
+}
 
+function sendTlgMessage(tlgid, language, type) {
+  const { title, text } = TEXTS[type]?.[language];
 
+  // const sendingText = TEXTS[language].text;
+  const params = `?chat_id=${tlgid}&text=${title}%0A${text}`;
+  const url = baseurl + params;
 
+  https
+    .get(url, (response) => {
+      let data = '';
 
-
-
-
-
+      // Когда запрос завершён
+      response.on('end', () => {
+        console.log(JSON.parse(data)); // Выводим результат
+      });
+    })
+    .on('error', (err) => {
+      console.error('Ошибка:', err);
+    });
+}
 
 app.listen(PORT, (err) => {
   if (err) {
