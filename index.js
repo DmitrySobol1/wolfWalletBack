@@ -398,7 +398,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       sub_partner_id: String(nowpaymentid),
       is_fixed_rate: false,
       is_fee_paid_by_user: false,
-      ipn_callback_url: 'https://...url',
+      ipn_callback_url: 'https://wolf-wallet.ru/api/webhook_payin',
     };
 
     // 3. Выполнение запроса с обработкой ошибок
@@ -622,10 +622,11 @@ async function createRqstTrtFromuserToMain(
   }
 }
 
+// для обработки "вывода" средств
 app.post('/api/webhook', async (req, res) => {
   try {
     const payload = req.body;
-    console.log('Получен вебхук:', payload);
+    console.log('Получен вебхук payout:', payload);
 
     // 1. Проверяем обязательный заголовок
     const receivedSignature = req.headers['x-nowpayments-sig'];
@@ -713,19 +714,14 @@ async function processWebhook(payload) {
 function sendTlgMessage(tlgid, language) {
   const { title, text } = TEXTS[language];
   // const sendingText = TEXTS[language].text;
-  const params = `?chat_id=${tlgid}&text=${title}%0A ${text}`;
+  const params = `?chat_id=${tlgid}&text=${title}%0A${text}`;
   const url = baseurl + params;
 
   https
     .get(url, (response) => {
       let data = '';
 
-      // Получаем данные частями
-      // response.on('data', (chunk) => {
-      //   data += chunk;
-      // });
-
-      // Когда запрос завершён
+       // Когда запрос завершён
       response.on('end', () => {
         console.log(JSON.parse(data)); // Выводим результат
       });
@@ -734,6 +730,84 @@ function sendTlgMessage(tlgid, language) {
       console.error('Ошибка:', err);
     });
 }
+
+
+
+
+
+// для обработки "ввода" средств
+app.post('/api/webhook_payin', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук payin:', payload);
+
+    // // 1. Проверяем обязательный заголовок
+    // const receivedSignature = req.headers['x-nowpayments-sig'];
+    // if (!receivedSignature) {
+    //   console.log('Отсутствует заголовок подписи');
+    //   return res.status(400).json({ error: 'Missing signature header' });
+    // }
+
+    // // 2. Безопасная сортировка объекта
+    // const safeSort = (obj) => {
+    //   const seen = new WeakSet();
+    //   const sort = (obj) => {
+    //     if (obj !== Object(obj)) return obj;
+    //     if (seen.has(obj)) return '[Circular]';
+    //     seen.add(obj);
+
+    //     return Object.keys(obj)
+    //       .sort()
+    //       .reduce((result, key) => {
+    //         result[key] = sort(obj[key]);
+    //         return result;
+    //       }, {});
+    //   };
+    //   return sort(obj);
+    // };
+
+    // // 3. Генерация и проверка подписи
+    // const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    // hmac.update(JSON.stringify(safeSort(payload)));
+    // const expectedSignature = hmac.digest('hex');
+
+    // // 4. Безопасное сравнение подписей
+    // if (
+    //   !crypto.timingSafeEqual(
+    //     Buffer.from(receivedSignature),
+    //     Buffer.from(expectedSignature)
+    //   )
+    // ) {
+    //   console.log('Неверная подпись');
+    //   return res.status(403).json({ error: 'Invalid signature' });
+    // }
+
+    // console.log('Подписи совпадают');
+
+    // // 5. Обработка вебхука (с обработкой ошибок)
+    // try {
+    //   res.status(200).json({ status: 'success' });
+    //   //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+
+    //   // await processWebhook(payload);
+    // } catch (processError) {
+    //   console.error('Ошибка обработки:', processError);
+    //   res.status(500).json({ error: 'Processing failed' });
+    // }
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+
+
+
+
+
+
 
 
 app.listen(PORT, (err) => {
