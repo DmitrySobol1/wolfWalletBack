@@ -690,7 +690,8 @@ await processWebhook(payload);
 async function processWebhook(payload) {
   console.log('Обрабатываю:', payload);
   
-  await VerifiedPayoutsModel.findOneAndUpdate(
+ 
+   const updatedItem= await VerifiedPayoutsModel.findOneAndUpdate(
     { batch_withdrawal_id: payload.batch_withdrawal_id },
     { $set: { status: payload.status.toLowerCase() } }
   );
@@ -698,6 +699,9 @@ async function processWebhook(payload) {
   console.log('Статус=',payload.status.toLowerCase());
 
   //TODO: добавить сообщение юзеру в бота
+  const foundUser = await UserModel.findOne({ nowpaymentid: updatedItem.userIdAtNP });
+  const language = foundUser.language
+  console.log('lang=',language)
 
 }
 
