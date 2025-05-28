@@ -14,6 +14,7 @@ import speakeasy from 'speakeasy';
 import axios from 'axios';
 
 import { Convert } from 'easy-currencies';
+import { TEXTS } from './texts.js';
 
 // import https from 'https';
 // const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
@@ -701,8 +702,9 @@ async function processWebhook(payload) {
   //TODO: добавить сообщение юзеру в бота
   const foundUser = await UserModel.findOne({ nowpaymentid: updatedItem.userIdAtNP });
   const language = foundUser.language
-  console.log('lang=',language)
-
+  
+  const { title, text } = TEXTS[language]
+console.log('title=',title, ' text=',text)
 }
 
 app.listen(PORT, (err) => {
