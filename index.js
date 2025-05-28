@@ -670,7 +670,11 @@ app.post('/api/webhook', async (req, res) => {
     // 5. Обработка вебхука (с обработкой ошибок)
     try {
       res.status(200).json({ status: 'success' });
-      await processWebhook(payload);
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+      
+await processWebhook(payload);
+      
+      
     } catch (processError) {
       console.error('Ошибка обработки:', processError);
       res.status(500).json({ error: 'Processing failed' });
@@ -685,7 +689,16 @@ app.post('/api/webhook', async (req, res) => {
 // Асинхронная функция обработки
 async function processWebhook(payload) {
   console.log('Обрабатываю:', payload);
-  // Реальная логика обработки...
+  
+  await VerifiedPayoutsModel.findOneAndUpdate(
+    { batch_withdrawal_id: payload.batch_withdrawal_id },
+    { $set: { status: payload.status.toLowerCase() } }
+  );
+
+  console.log('Статус=',payload.status.toLowerCase());
+
+  //TODO: добавить сообщение юзеру в бота
+
 }
 
 app.listen(PORT, (err) => {
