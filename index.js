@@ -808,7 +808,7 @@ async function processWebhookPayin(payload) {
 
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
-    { $set: { status: payload.payment_status.toLowerCase() } }
+    { $set: { payment_status: payload.payment_status.toLowerCase() } }
   );
 
   console.log('Статус payin=', payload.payment_status.toLowerCase());
