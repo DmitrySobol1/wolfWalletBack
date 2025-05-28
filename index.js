@@ -16,8 +16,8 @@ import axios from 'axios';
 import { Convert } from 'easy-currencies';
 import { TEXTS } from './texts.js';
 
-// import https from 'https';
-// const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+import https from 'https';
+const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
 
 const PORT = process.env.PORT || 4444;
 
@@ -641,7 +641,7 @@ app.post('/api/webhook', async (req, res) => {
         if (obj !== Object(obj)) return obj;
         if (seen.has(obj)) return '[Circular]';
         seen.add(obj);
-        
+
         return Object.keys(obj)
           .sort()
           .reduce((result, key) => {
@@ -658,29 +658,28 @@ app.post('/api/webhook', async (req, res) => {
     const expectedSignature = hmac.digest('hex');
 
     // 4. Безопасное сравнение подписей
-    if (!crypto.timingSafeEqual(
-      Buffer.from(receivedSignature), 
-      Buffer.from(expectedSignature)
-    )) {
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
       console.log('Неверная подпись');
       return res.status(403).json({ error: 'Invalid signature' });
     }
 
     console.log('Подписи совпадают');
-    
+
     // 5. Обработка вебхука (с обработкой ошибок)
     try {
       res.status(200).json({ status: 'success' });
       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
-      
-await processWebhook(payload);
-      
-      
+
+      await processWebhook(payload);
     } catch (processError) {
       console.error('Ошибка обработки:', processError);
       res.status(500).json({ error: 'Processing failed' });
     }
-
   } catch (error) {
     console.error('Ошибка обработки вебхука:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -690,22 +689,52 @@ await processWebhook(payload);
 // Асинхронная функция обработки
 async function processWebhook(payload) {
   console.log('Обрабатываю:', payload);
-  
- 
-   const updatedItem= await VerifiedPayoutsModel.findOneAndUpdate(
+
+  const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
     { batch_withdrawal_id: payload.batch_withdrawal_id },
     { $set: { status: payload.status.toLowerCase() } }
   );
 
-  console.log('Статус=',payload.status.toLowerCase());
+  console.log('Статус=', payload.status.toLowerCase());
 
-  //TODO: добавить сообщение юзеру в бота
-  const foundUser = await UserModel.findOne({ nowpaymentid: updatedItem.userIdAtNP });
-  const language = foundUser.language
-  
-  const { title, text } = TEXTS[language]
-console.log('title=',title, ' text=',text)
+  if (payload.status.toLowerCase() === 'finished') {
+    const foundUser = await UserModel.findOne({
+      nowpaymentid: updatedItem.userIdAtNP,
+    });
+    const language = foundUser.language;
+    const tlgid = foundUser.tlgid
+    console.log('переход к функции сенд мсг')
+    sendTlgMessage(tlgid,language)
+
+  }
 }
+
+
+function sendTlgMessage(tlgid, language) {
+  const { title, text } = TEXTS[language];
+  // const sendingText = TEXTS[language].text;
+  const params = `?chat_id=${tlgid}&text=${title}%0A ${text}`;
+  const url = baseurl + params;
+
+  https
+    .get(url, (response) => {
+      let data = '';
+
+      // Получаем данные частями
+      // response.on('data', (chunk) => {
+      //   data += chunk;
+      // });
+
+      // Когда запрос завершён
+      response.on('end', () => {
+        console.log(JSON.parse(data)); // Выводим результат
+      });
+    })
+    .on('error', (err) => {
+      console.error('Ошибка:', err);
+    });
+}
+
 
 app.listen(PORT, (err) => {
   if (err) {
