@@ -895,7 +895,8 @@ async function processWebhookPayin(payload) {
   //поменять статус в БД
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
-    { $set: { payment_status: payload.payment_status.toLowerCase() } }
+    { $set: { payment_status: payload.payment_status.toLowerCase() } },
+    { $set: { amount_received: payload.outcome_amount } }
   );
 
   console.log('Статус payin=', payload.payment_status.toLowerCase());
@@ -915,16 +916,21 @@ async function processWebhookPayin(payload) {
 
     const language = userFromUserBase.language;
     const type = 'payin';
+    const coin = payload.price_currency
+    const sumToReceived = payload.outcome_amount
+    const textToSendUser = sumToReceived + ' ' + coin.toLowerCase()
     console.log('переход к функции сенд мсг');
-    sendTlgMessage(tlgid, language, type);
+    sendTlgMessage(tlgid, language, type, textToSendUser);
   }
 }
 
-function sendTlgMessage(tlgid, language, type) {
+// TODO: добавить параметр text в payout !!! 
+function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   const { title, text } = TEXTS[type]?.[language];
+  const fullText = text + textQtyCoins
 
   // const sendingText = TEXTS[language].text;
-  const params = `?chat_id=${tlgid}&text=${title}%0A${text}`;
+  const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
   const url = baseurl + params;
 
   https

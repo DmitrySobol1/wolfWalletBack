@@ -15,8 +15,8 @@ export const TEXTS = {
   },
   payin: {
   ru: {
-    title: 'Средства пришли на кошелек',
-    text: 'тут доп текст на русском',
+    title: 'Успешное пополнение',
+    text: 'вы получили ',
   },
   en: {
     title: 'Coins has been received on wallet',
