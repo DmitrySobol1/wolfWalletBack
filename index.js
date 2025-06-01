@@ -316,7 +316,7 @@ async function getTokenFromNowPayment() {
 
 async function getMinAmountForDeposit(coin) {
   const response = await axios.get(
-    `https://api.nowpayments.io/v1/min-amount?currency_from=${coin}&fiat_equivalent=usd&is_fixed_rate=false&is_fee_paid_by_user=False`,
+    `https://api.nowpayments.io/v1/min-amount?currency_from=${coin}&fiat_equivalent=usd&is_fixed_rate=false&is_fee_paid_by_user=false`,
     {
       headers: {
         'x-api-key': process.env.NOWPAYMENTSAPI,
@@ -393,7 +393,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid, tlgid) {
       throw new Error('Invalid nowpaymentid format');
     }
 
-    // 2. Формирование тела запроса (уточните правильную структуру в API-документации)
+    // 2. Формирование тела запроса 
     const requestData = {
       currency: coin,
       amount: Number(minAmount),
@@ -890,10 +890,9 @@ app.post('/api/webhook_payin', async (req, res) => {
 //FIXME:
 // функция обработки payIn со статусом finished
 async function processWebhookPayin(payload) {
-  console.log('Обрабатываю payin:');
+  console.log('Обрабатываю payin:',payload);
 
-  // const statusLowerLetter = payload.payment_status.toLowerCase()
-
+  //поменять статус в БД
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
     { $set: { payment_status: payload.payment_status.toLowerCase() } }
@@ -901,8 +900,9 @@ async function processWebhookPayin(payload) {
 
   console.log('Статус payin=', payload.payment_status.toLowerCase());
 
-  // const uslovie = payload.status.toLowerCase()
-
+  //TODO:
+  // найти сумму зачисления, вывести пользователю ее
+  
   if (payload.payment_status.toLowerCase() === 'finished') {
     const userFromRqstBase = await RqstPayInModel.findOne({
       payment_id: payload.payment_id,
