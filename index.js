@@ -393,7 +393,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid, tlgid) {
       throw new Error('Invalid nowpaymentid format');
     }
 
-    // 2. Формирование тела запроса 
+    // 2. Формирование тела запроса
     const requestData = {
       currency: coin,
       amount: Number(minAmount),
@@ -456,7 +456,7 @@ async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
 // получение баланса юзера, для вывода в "пополнить" и на странице wallet tab активы
 app.get('/api/get_balance_for_pay_out', async (req, res) => {
   try {
-    const tlgid = req.query.tlgid
+    const tlgid = req.query.tlgid;
     // const tlgid = req.body.tlgid;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
@@ -498,7 +498,7 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
       );
 
       const userBalance = response.data.result.balances;
-      
+
       // console.log('step 3');
       // console.log('response=', response.data.result);
       // return res.json('ok3');
@@ -525,30 +525,35 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
         symbol = '₽';
       }
 
-      const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance.map((item) => {
-  const matchingPrice = cryptoPrices.find(
-    (price) => item.currency.toLowerCase() === price.symbol.toLowerCase()
-  );
+      const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance
+        .map((item) => {
+          const matchingPrice = cryptoPrices.find(
+            (price) =>
+              item.currency.toLowerCase() === price.symbol.toLowerCase()
+          );
 
-  const amount = item.amount != null ? parseFloat(item.amount) : 0;
-  const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
-  const fiatK = parseFloat(fiatKoefficient) || 0;
+          const amount = item.amount != null ? parseFloat(item.amount) : 0;
+          const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
+          const fiatK = parseFloat(fiatKoefficient) || 0;
 
-  if (amount > 0) {
-    const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
-    const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(2);
+          if (amount > 0) {
+            const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
+            const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(
+              2
+            );
 
-    return {
-      currency: item.currency,
-      amount: amount,
-      price_usd: priceUsd,
-      priceAllCoinInUsd: priceAllCoinInUsd,
-      priceAllCoinInUserFiat: priceAllCoinInUserFiat,
-      symbol: symbol,
-    };
-  }
-  return null; // или return {};
-}).filter(Boolean); // Удаляет null/undefined из массива;
+            return {
+              currency: item.currency,
+              amount: amount,
+              price_usd: priceUsd,
+              priceAllCoinInUsd: priceAllCoinInUsd,
+              priceAllCoinInUserFiat: priceAllCoinInUserFiat,
+              symbol: symbol,
+            };
+          }
+          return null; // или return {};
+        })
+        .filter(Boolean); // Удаляет null/undefined из массива;
 
       // console.log('step 5');
       // console.log('arrayOfUserBalanceWithUsdPrice=', arrayOfUserBalanceWithUsdPrice);
@@ -556,8 +561,6 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
       // =================
 
       // TODO: проверить верность подсчета коэффициента
-
-      
 
       return res.json({ arrayOfUserBalanceWithUsdPrice });
     } else {
@@ -890,20 +893,21 @@ app.post('/api/webhook_payin', async (req, res) => {
 //FIXME:
 // функция обработки payIn со статусом finished
 async function processWebhookPayin(payload) {
-  console.log('Обрабатываю payin:',payload);
+  console.log('Обрабатываю payin:', payload);
 
   //поменять статус в БД
   const updatedItem = await RqstPayInModel.findOneAndUpdate(
     { payment_id: payload.payment_id },
-    { $set: { payment_status: payload.payment_status.toLowerCase() } },
-    { $set: { amount_received: payload.outcome_amount } }
+    {
+      $set: {
+        payment_status: payload.payment_status.toLowerCase(),
+        amount_received: payload.outcome_amount,
+      },
+    }
   );
 
   console.log('Статус payin=', payload.payment_status.toLowerCase());
 
-  //TODO:
-  // найти сумму зачисления, вывести пользователю ее
-  
   if (payload.payment_status.toLowerCase() === 'finished') {
     const userFromRqstBase = await RqstPayInModel.findOne({
       payment_id: payload.payment_id,
@@ -916,18 +920,18 @@ async function processWebhookPayin(payload) {
 
     const language = userFromUserBase.language;
     const type = 'payin';
-    const coin = payload.price_currency
-    const sumToReceived = payload.outcome_amount
-    const textToSendUser = sumToReceived + ' ' + coin.toLowerCase()
+    const coin = payload.price_currency;
+    const sumToReceived = payload.outcome_amount;
+    const textToSendUser = sumToReceived + ' ' + coin.toUpperCase();
     console.log('переход к функции сенд мсг');
     sendTlgMessage(tlgid, language, type, textToSendUser);
   }
 }
 
-// TODO: добавить параметр text в payout !!! 
+// TODO: добавить параметр textQtyCoins в payout !!! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   const { title, text } = TEXTS[type]?.[language];
-  const fullText = text + textQtyCoins
+  const fullText = text + textQtyCoins;
 
   // const sendingText = TEXTS[language].text;
   const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
@@ -947,7 +951,6 @@ function sendTlgMessage(tlgid, language, type, textQtyCoins) {
     });
 }
 
-
 //статистика пополнения баланса
 app.get('/api/get_my_payin', async (req, res) => {
   try {
@@ -957,54 +960,62 @@ app.get('/api/get_my_payin', async (req, res) => {
 
     const payins = await RqstPayInModel.find({
       payment_status: 'finished',
-      tlgid: req.query.tlgid
-    }).sort({ updatedAt: -1 }).lean();
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     if (!payins || payins.length === 0) {
       return res.status(404).json({ status: 'no' });
     }
 
     const months = [
-      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'мая',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
     ];
 
-    
-    const processedPayins = payins.map(item => {
+    const processedPayins = payins.map((item) => {
       const date = new Date(item.updatedAt);
       const day = date.getDate();
       const month = months[date.getMonth()];
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
-      
+
       // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
       return {
         ...item,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
       };
     });
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       status: 'ok',
       count: processedPayins.length,
-      data: processedPayins 
+      data: processedPayins,
     });
-    
   } catch (err) {
     console.error('Ошибка в /api/get_my_payin:', err);
     res.status(500).json({
       success: false,
-      message: 'Внутренняя ошибка сервера'
+      message: 'Внутренняя ошибка сервера',
     });
   }
 });
 
-
 //статистика вывода с баланса
 app.get('/api/get_my_payout', async (req, res) => {
   try {
-
-const tlgid = req.query.tlgid
+    const tlgid = req.query.tlgid;
 
     if (!tlgid) {
       return res.status(400).json({ message: 'Параметр tlgid обязателен' });
@@ -1017,48 +1028,57 @@ const tlgid = req.query.tlgid
 
     const payouts = await VerifiedPayoutsModel.find({
       status: 'finished',
-      userIdAtNP: nowpaymentid
-    }).sort({ updatedAt: -1 }).lean();
+      userIdAtNP: nowpaymentid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     if (!payouts || payouts.length === 0) {
       return res.status(404).json({ status: 'no' });
     }
 
     const months = [
-      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'мая',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
     ];
 
-    
-    const processedPayouts = payouts.map(item => {
+    const processedPayouts = payouts.map((item) => {
       const date = new Date(item.updatedAt);
       const day = date.getDate();
       const month = months[date.getMonth()];
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
-      
+
       // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
       return {
         ...item,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
       };
     });
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       status: 'ok',
       count: processedPayouts.length,
-      data: processedPayouts 
+      data: processedPayouts,
     });
-    
   } catch (err) {
     console.error('Ошибка в /api/get_my_payout:', err);
     res.status(500).json({
       success: false,
-      message: 'Внутренняя ошибка сервера'
+      message: 'Внутренняя ошибка сервера',
     });
   }
 });
-
 
 app.listen(PORT, (err) => {
   if (err) {

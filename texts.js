@@ -19,12 +19,12 @@ export const TEXTS = {
     text: 'вы получили ',
   },
   en: {
-    title: 'Coins has been received on wallet',
-    text: 'english additional text',
+    title: 'Successful deposit',
+    text: 'you have received ',
   },
   de: {
-    title: 'Münzen wurden in der Brieftasche empfangen',
-    text: 'deutch zusätzlicher text',
+    title: 'Erfolgreiche Wiederauffüllung',
+    text: 'sie erhalten haben ',
   }
   },
 
