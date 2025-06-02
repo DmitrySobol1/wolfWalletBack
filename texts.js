@@ -1,16 +1,16 @@
 export const TEXTS = {
   payout: {
   ru: {
-    title: 'Средства выведены',
-    text: 'тут доп текст на русском',
+    title: 'Обработка транзакции завершена',
+    text: 'успешно отправлено ',
   },
   en: {
-    title: 'Coins has been sent',
-    text: 'english additional text',
+    title: 'Transaction processing is complete',
+    text: 'succsessfully have been sent ',
   },
   de: {
-    title: 'Die Münzen wurden gesendet',
-    text: 'deutch zusätzlicher text',
+    title: 'Die Transaktionsverarbeitung ist abgeschlossen',
+    text: 'erfolgreich gesendet worden sind ',
   }
   },
   payin: {

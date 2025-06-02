@@ -859,7 +859,8 @@ async function processWebhookPayout(payload) {
     const tlgid = foundUser.tlgid;
     console.log('переход к функции сенд мсг');
     const type = 'payout';
-    sendTlgMessage(tlgid, language, type);
+    const textQtyCoins = Number((Number(payload.amount) - Number(payload.fee)).toFixed(6))
+    sendTlgMessage(tlgid, language, type,textQtyCoins);
   }
 }
 
