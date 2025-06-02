@@ -174,6 +174,8 @@ async function verifyPayout(withdrawal_id, code2fa, token) {
   return response.data;
 }
 
+
+
 // создать новый объект в verified payouts
 async function createVerifiedPayout(
   payout_id,
@@ -183,8 +185,10 @@ async function createVerifiedPayout(
   status,
   userIdAtNP,
   adress,
-  totalComissionNum,
-  qtyToSend
+  networkFees,
+  ourComission,
+  qtyToSend,
+  qtyForApiRqst
 ) {
   try {
     const rqst = new VerifiedPayoutsModel({
@@ -195,8 +199,10 @@ async function createVerifiedPayout(
       status,
       userIdAtNP,
       adress,
-      totalComissionNum,
+      networkFees,
+      ourComission,
       qtyToSend,
+      qtyForApiRqst
     });
 
     const user = await rqst.save();
