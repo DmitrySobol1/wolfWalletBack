@@ -855,13 +855,15 @@ async function processWebhookPayout(payload) {
     const foundUser = await UserModel.findOne({
       nowpaymentid: updatedItem.userIdAtNP,
     });
+    const coin = payload.currency
     const language = foundUser.language;
     const tlgid = foundUser.tlgid;
     const type = 'payout';
     const textQtyCoins = Number((Number(payload.amount) - Number(payload.fee)).toFixed(6))
+    
+    const textToSendUser = textQtyCoins + ' ' + coin.toUpperCase();
     console.log('переход к функции сенд мсг');
-    console.log('пtextQtyCoins=',textQtyCoins);
-    sendTlgMessage(tlgid, language, type,textQtyCoins);
+    sendTlgMessage(tlgid, language, type,textToSendUser);
   }
 }
 
@@ -968,7 +970,7 @@ async function processWebhookPayin(payload) {
   }
 }
 
-// TODO: добавить параметр textQtyCoins в payout !!! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   const { title, text } = TEXTS[type]?.[language];
   const fullText = text + textQtyCoins;
