@@ -665,6 +665,9 @@ app.post('/api/rqst_to_payout', async (req, res) => {
       return res.status(404).send('Пользователь не найден');
     }
 
+       
+
+
     const nowpaymentid = user._doc.nowpaymentid;
 
     const requestData = {
@@ -690,12 +693,14 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 
       console.log('transactionId=', response.data.result);
 
-    //     coin,+
-    //     sum,+ (totalSum)
-    //     tlgid, -
-    //     adress, + 
-    //     totalComissionNum,
-    //     qtyToSend  (qty to send to user)
+     // coin,
+        // sum,
+        // tlgid,
+        // adress,
+        // networkFees,
+        // ourComission,
+        // qtyToSend,
+        // qtyForApiRqst
 
 
       const createRqst = await createRqstTrtFromuserToMain(
@@ -704,8 +709,10 @@ app.post('/api/rqst_to_payout', async (req, res) => {
         req.body.sum,
         nowpaymentid,
         req.body.adress,
-        req.body.totalComissionNum,
+        req.body.networkFees,
+        req.body.ourComission,
         req.body.qtyToSend,
+        req.body.qtyForApiRqst,
 
       );
 
@@ -723,14 +730,27 @@ app.post('/api/rqst_to_payout', async (req, res) => {
   }
 });
 
+        // transactionId,
+        // req.body.coin,
+        // req.body.sum,
+        // nowpaymentid,
+        // req.body.adress,
+        // req.body.networkFees,
+        // req.body.ourComission,
+        // req.body.qtyToSend,
+        // req.body.qtyForApiRqst, 
+
+
 async function createRqstTrtFromuserToMain(
   transactionId,
   coin,
   sum,
   userIdAtNP,
   adress,
-  totalComissionNum,
-  qtyToSend
+  networkFees,
+  ourComission,
+  qtyToSend,
+  qtyForApiRqst
 ) {
   try {
     const rqst = new RqstTrtFromUserToMainModel({
@@ -740,8 +760,10 @@ async function createRqstTrtFromuserToMain(
       status: 'new',
       userIdAtNP: userIdAtNP,
       adress: adress,
-      totalComissionNum: totalComissionNum,
-      qtyToSend:qtyToSend
+      networkFees: networkFees,
+      ourComission: ourComission,
+      qtyToSend:qtyToSend,
+      qtyForApiRqst:qtyForApiRqst
     });
 
     const user = await rqst.save();
@@ -1159,14 +1181,14 @@ app.get('/api/get_withdrawal_fee', async (req, res) => {
       }
     );
 
-    let fee = false
+    let networkFees = false
 
     if (response.data){
-      fee = response.data.fee
+      networkFees = response.data.fee
     }
     
     
-    return res.json({fee});
+    return res.json({networkFees});
     
   } catch (err) {
     console.log(err);

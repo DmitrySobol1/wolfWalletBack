@@ -4,23 +4,20 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
-
 import mongoose from 'mongoose';
 import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
 
 import cors from 'cors';
 
-
 import speakeasy from 'speakeasy';
 import axios from 'axios';
-
 
 const PORT = process.env.PORT || 4444;
 
 mongoose
   .connect(process.env.DATABASE_URL)
-    .then(() => console.log('DB OK'))
+  .then(() => console.log('DB OK'))
   .catch((err) => console.log('db error:', err));
 
 // const app = express();
@@ -29,197 +26,182 @@ mongoose
 // app.use(cors());
 
 // TODO: убрат в проде команду
-  // executeCheckTask()
+// executeCheckTask()
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
 
+export async function executeCheckTask() {
+  console.log('Начинаю cron...');
 
-  export async function executeCheckTask() {
-    console.log('Начинаю cron...');
+  const records = await RqstTrtFromUserToMainModel.find({
+    status: 'new',
+  }).exec();
 
+  console.log('step 1 | records=', records);
 
-  
-    const records = await RqstTrtFromUserToMainModel.find({
-      status: 'new',
-    }).exec();
+  if (records.length == 0) {
+    console.log('записей не найдено');
+    return;
+  }
 
-    console.log('step 1 | records=', records);
+  const token = await getBearerToken();
 
-    if (records.length == 0){
-      console.log('записей не найдено');
-      return
-    }
+  console.log('step 2 | token=', token);
 
-    const token = await getBearerToken();
+  for (const item of records) {
+    const requestData = {
+      ipn_callback_url: process.env.WEBHOOKADRESS,
+      withdrawals: [
+        {
+          address: item.adress,
+          currency: item.coin,
+          amount: item.qtyForApiRqst,
+          ipn_callback_url: process.env.WEBHOOKADRESS,
+        },
+      ],
+    };
 
-    console.log('step 2 | token=', token);
+    const createPayoutResult = await createpayout(requestData, token);
 
-    for (const item of records) {
-      const requestData = {
-        
-        ipn_callback_url: process.env.WEBHOOKADRESS,
-        withdrawals: [
-          {
-            address: item.adress,
-            currency: item.coin,
-            amount: item.qtyToSend,
-            ipn_callback_url: process.env.WEBHOOKADRESS,
-          },
-        ],
-      };
+    const batch_withdrawal_id = createPayoutResult.id;
+    const payout_id = createPayoutResult.withdrawals[0].id;
 
-      const createPayoutResult = await createpayout(requestData, token);
-      
+    console.log('step 3 | withdrawal_id=', batch_withdrawal_id);
 
-      const batch_withdrawal_id = createPayoutResult.id;
-      const payout_id = createPayoutResult.withdrawals[0].id;
+    const code2fa = await create2FAcode();
+    console.log('step 4 | code2fa=', code2fa);
 
-      console.log('step 3 | withdrawal_id=', batch_withdrawal_id);
+    const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
+    console.log('step 5 | verify=', verify);
 
-      const code2fa = await create2FAcode();
-      console.log('step 4 | code2fa=', code2fa);
+    if (verify === 'OK') {
+      const status = 'creating';
 
-      const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
-      console.log('step 5 | verify=', verify);
+      await createVerifiedPayout(
+        payout_id,
+        batch_withdrawal_id,
+        item.coin,
+        item.sum,
+        status,
+        item.userIdAtNP,
+        item.adress,
+        item.networkFees,
+        item.ourComission,
+        item.qtyToSend,
+        item.qtyForApiRqst
+      );
+      console.log('step 6 | new obj created');
 
-      if (verify === 'OK') {
-        const status = 'creating';
-
-        await createVerifiedPayout(
-          payout_id,
-          batch_withdrawal_id,
-          item.coin,
-          item.sum, + 
-          status,
-          item.userIdAtNP,
-          item.adress,
-          item.totalComissionNum,
-          item.qtyToSend
-        );
-        console.log('step 6 | new obj created');
-
-
-
-        await RqstTrtFromUserToMainModel.findOneAndUpdate(
+      await RqstTrtFromUserToMainModel.findOneAndUpdate(
         { transactionId: item.transactionId },
         { $set: { status: 'operated' } }
         // { new: true } // Вернуть обновленную запись
       );
-
-
-      }
-
-      // return res.json({ success: true });
-      return ({ success: true });
     }
+
+    // return res.json({ success: true });
+    return { success: true };
   }
+}
 
-
-
-  //получить bearer token
-  async function getBearerToken() {
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/auth',
-      {
-        email: process.env.NOWPAYMENTSEMAIL,
-        password: process.env.NOWPAYMENTSPASSWD,
+//получить bearer token
+async function getBearerToken() {
+  const response = await axios.post(
+    'https://api.nowpayments.io/v1/auth',
+    {
+      email: process.env.NOWPAYMENTSEMAIL,
+      password: process.env.NOWPAYMENTSPASSWD,
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    return response.data.token;
-  }
-  
-  //создать payout
-  async function createpayout(requestData, token) {
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/payout',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    // return response.data.id;
-    return response.data;
-  }
-  
-  //создать 2FA код
-  async function create2FAcode() {
-    try {
-      const secret_key = process.env.TWOFACODE;
-  
-      const code = speakeasy.totp({
-        secret: secret_key,
-        encoding: 'base32',
-      });
-  
-      return code;
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Ошибка при создании кода.' });
     }
-  }
-  
-  //верифицировать payout
-  async function verifyPayout(withdrawal_id, code2fa, token) {
-    const response = await axios.post(
-      `https://api.nowpayments.io/v1/payout/${withdrawal_id}/verify`,
-      {
-        verification_code: code2fa,
+  );
+  return response.data.token;
+}
+
+//создать payout
+async function createpayout(requestData, token) {
+  const response = await axios.post(
+    'https://api.nowpayments.io/v1/payout',
+    requestData,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'x-api-key': process.env.NOWPAYMENTSAPI,
+        'Content-Type': 'application/json',
       },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    return response.data;
-  }
-  
-
-  
-
-
-  // создать новый объект в verified payouts
-  async function createVerifiedPayout(
-    payout_id,
-    batch_withdrawal_id,
-    coin,
-    sum,
-    status,
-    userIdAtNP,
-    adress,
-    totalComissionNum,
-    qtyToSend
-  ) {
-    try {
-      const rqst = new VerifiedPayoutsModel({
-        payout_id,
-        batch_withdrawal_id,
-        coin,
-        sum,
-        status,
-        userIdAtNP,
-        adress,
-        totalComissionNum,
-        qtyToSend
-      });
-  
-      const user = await rqst.save();
-      return 'created';
-    } catch (err) {
-      console.log(err);
     }
-  }
-  
+  );
+  // return response.data.id;
+  return response.data;
+}
 
+//создать 2FA код
+async function create2FAcode() {
+  try {
+    const secret_key = process.env.TWOFACODE;
+
+    const code = speakeasy.totp({
+      secret: secret_key,
+      encoding: 'base32',
+    });
+
+    return code;
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Ошибка при создании кода.' });
+  }
+}
+
+//верифицировать payout
+async function verifyPayout(withdrawal_id, code2fa, token) {
+  const response = await axios.post(
+    `https://api.nowpayments.io/v1/payout/${withdrawal_id}/verify`,
+    {
+      verification_code: code2fa,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'x-api-key': process.env.NOWPAYMENTSAPI,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  return response.data;
+}
+
+// создать новый объект в verified payouts
+async function createVerifiedPayout(
+  payout_id,
+  batch_withdrawal_id,
+  coin,
+  sum,
+  status,
+  userIdAtNP,
+  adress,
+  totalComissionNum,
+  qtyToSend
+) {
+  try {
+    const rqst = new VerifiedPayoutsModel({
+      payout_id,
+      batch_withdrawal_id,
+      coin,
+      sum,
+      status,
+      userIdAtNP,
+      adress,
+      totalComissionNum,
+      qtyToSend,
+    });
+
+    const user = await rqst.save();
+    return 'created';
+  } catch (err) {
+    console.log(err);
+  }
+}

@@ -1,13 +1,5 @@
 import mongoose from 'mongoose';
 
-// transactionId: transactionId,
-//       coin: coin,
-//       sum: sum,
-//       status: 'new',
-//       userIdAtNP: userIdAtNP,
-//       adress: adress,
-//       totalComissionNum: totalComissionNum,
-//       qtyToSend:qtyToSend
 
 const RqstTrtFromUserToMainSchema = new mongoose.Schema(
   {
@@ -36,11 +28,19 @@ const RqstTrtFromUserToMainSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    totalComissionNum: {
+    networkFees: {
+      type: Number,
+      required: true,
+    },
+    ourComission: {
       type: Number,
       required: true,
     },
     qtyToSend: {
+      type: Number,
+      required: true,
+    },
+    qtyForApiRqst: {
       type: Number,
       required: true,
     }

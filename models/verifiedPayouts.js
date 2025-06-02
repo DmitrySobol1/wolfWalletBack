@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+
 const VerifiedPayoutsSchema = new mongoose.Schema(
   {
     payout_id: {
@@ -31,11 +32,19 @@ const VerifiedPayoutsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    totalComissionNum: {
+    networkFees: {
+      type: Number,
+      required: true,
+    },
+    ourComission: {
       type: Number,
       required: true,
     },
     qtyToSend: {
+      type: Number,
+      required: true,
+    },
+    qtyForApiRqst: {
       type: Number,
       required: true,
     },
