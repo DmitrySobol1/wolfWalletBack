@@ -9,14 +9,13 @@ const VerifiedPayoutsSchema = new mongoose.Schema(
     },
     batch_withdrawal_id: {
       type: Number,
-      required: true
-      
+      required: true,
     },
     coin: {
       type: String,
       required: true,
     },
-    qty: {
+    sum: {
       type: String,
       required: true,
     },
@@ -31,14 +30,19 @@ const VerifiedPayoutsSchema = new mongoose.Schema(
     adress: {
       type: String,
       required: true,
-    }
+    },
+    totalComissionNum: {
+      type: Number,
+      required: true,
+    },
+    qtyToSend: {
+      type: Number,
+      required: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-export default mongoose.model(
-  'VerifiedPayouts',
-  VerifiedPayoutsSchema
-);
+export default mongoose.model('VerifiedPayouts', VerifiedPayoutsSchema);

@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+// transactionId: transactionId,
+//       coin: coin,
+//       sum: sum,
+//       status: 'new',
+//       userIdAtNP: userIdAtNP,
+//       adress: adress,
+//       totalComissionNum: totalComissionNum,
+//       qtyToSend:qtyToSend
+
 const RqstTrtFromUserToMainSchema = new mongoose.Schema(
   {
     transactionId: {
@@ -11,7 +20,7 @@ const RqstTrtFromUserToMainSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    qty: {
+    sum: {
       type: String,
       required: true,
     },
@@ -26,7 +35,16 @@ const RqstTrtFromUserToMainSchema = new mongoose.Schema(
     adress: {
       type: String,
       required: true,
+    },
+    totalComissionNum: {
+      type: Number,
+      required: true,
+    },
+    qtyToSend: {
+      type: Number,
+      required: true,
     }
+
   },
   {
     timestamps: true,

@@ -657,6 +657,7 @@ app.post('/api/rqst_to_payout', async (req, res) => {
   try {
     const token = await getTokenFromNowPayment();
 
+    
     // найти nowPayment id по тлг id
     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
@@ -668,7 +669,7 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 
     const requestData = {
       currency: String(req.body.coin),
-      amount: Number(req.body.toSend),
+      amount: Number(req.body.sum),
       sub_partner_id: String(nowpaymentid),
     };
 
@@ -689,12 +690,23 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 
       console.log('transactionId=', response.data.result);
 
+    //     coin,+
+    //     sum,+ (totalSum)
+    //     tlgid, -
+    //     adress, + 
+    //     totalComissionNum,
+    //     qtyToSend  (qty to send to user)
+
+
       const createRqst = await createRqstTrtFromuserToMain(
         transactionId,
         req.body.coin,
-        req.body.toSend,
+        req.body.sum,
         nowpaymentid,
-        req.body.adress
+        req.body.adress,
+        req.body.totalComissionNum,
+        req.body.qtyToSend,
+
       );
 
       if (createRqst === 'created') {
@@ -714,18 +726,22 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 async function createRqstTrtFromuserToMain(
   transactionId,
   coin,
-  qty,
+  sum,
   userIdAtNP,
-  adress
+  adress,
+  totalComissionNum,
+  qtyToSend
 ) {
   try {
     const rqst = new RqstTrtFromUserToMainModel({
       transactionId: transactionId,
       coin: coin,
-      qty: qty,
+      sum: sum,
       status: 'new',
       userIdAtNP: userIdAtNP,
       adress: adress,
+      totalComissionNum: totalComissionNum,
+      qtyToSend:qtyToSend
     });
 
     const user = await rqst.save();
@@ -1079,6 +1095,95 @@ app.get('/api/get_my_payout', async (req, res) => {
     });
   }
 });
+
+
+
+
+
+//получить мин сумму для вывода и нашу комиссию
+app.get('/api/get_info_for_payout', async (req, res) => {
+  try {
+    
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    let status = false
+
+    let minSumToWithdraw = 'not available'
+    if (response.data && response.data.success === true){
+      minSumToWithdraw = response.data.result
+    }
+
+    let ourComission = 'not available'
+    const comission = await ComissionToPayoutModel.findOne({
+      coin: req.query.coin,
+    });
+    if (comission) {
+      ourComission = Number(comission.qty)
+    }
+
+    
+    if (minSumToWithdraw !== 'not available' && ourComission !== 'not available') {
+      status = true
+    }
+
+    return res.json({minSumToWithdraw,ourComission,status,coin:req.query.coin});
+    
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+
+
+
+//получить комиссию сети за вывод монеты 
+app.get('/api/get_withdrawal_fee', async (req, res) => {
+  try {
+    
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/payout/fee?currency=${req.query.coin}&amount=${req.query.amount}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    let fee = false
+
+    if (response.data){
+      fee = response.data.fee
+    }
+    
+    
+    return res.json({fee});
+    
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+
+
+
+
+
+
+
+
 
 app.listen(PORT, (err) => {
   if (err) {

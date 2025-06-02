@@ -57,14 +57,13 @@ mongoose
 
     for (const item of records) {
       const requestData = {
-        // ipn_callback_url: 'https://nowpayments.io',
+        
         ipn_callback_url: process.env.WEBHOOKADRESS,
         withdrawals: [
           {
             address: item.adress,
             currency: item.coin,
-            amount: item.qty,
-            // ipn_callback_url: 'https://nowpayments.io',
+            amount: item.qtyToSend,
             ipn_callback_url: process.env.WEBHOOKADRESS,
           },
         ],
@@ -91,12 +90,15 @@ mongoose
           payout_id,
           batch_withdrawal_id,
           item.coin,
-          item.qty,
+          item.sum, + 
           status,
           item.userIdAtNP,
-          item.adress
+          item.adress,
+          item.totalComissionNum,
+          item.qtyToSend
         );
         console.log('step 6 | new obj created');
+
 
 
         await RqstTrtFromUserToMainModel.findOneAndUpdate(
@@ -184,25 +186,33 @@ mongoose
     return response.data;
   }
   
+
+  
+
+
   // создать новый объект в verified payouts
   async function createVerifiedPayout(
     payout_id,
     batch_withdrawal_id,
     coin,
-    qty,
+    sum,
     status,
     userIdAtNP,
-    adress
+    adress,
+    totalComissionNum,
+    qtyToSend
   ) {
     try {
       const rqst = new VerifiedPayoutsModel({
         payout_id,
         batch_withdrawal_id,
         coin,
-        qty,
+        sum,
         status,
         userIdAtNP,
         adress,
+        totalComissionNum,
+        qtyToSend
       });
   
       const user = await rqst.save();
