@@ -120,8 +120,16 @@ app.post('/api/get_user_balance', async (req, res) => {
 
     const valute = userData.valute;
 
+    let symbol = '₽'
+    if (valute === 'usd') {
+      symbol= '$';
+    } else if (valute === 'eur') {
+      symbol= '€';
+    } 
+
     if (userData.nowpaymentid === 0) {
-      return res.json({ balance: 0 });
+      return res.json({ balance: 0, language:language, valute:valute, symbol:symbol });
+      // return res.json({ balance: 0, language:language, valute:valute });
     }
 
     let cryptoPrices = await getCryptoPrices();
@@ -657,16 +665,12 @@ app.post('/api/rqst_to_payout', async (req, res) => {
   try {
     const token = await getTokenFromNowPayment();
 
-    
     // найти nowPayment id по тлг id
     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
     if (!user) {
       return res.status(404).send('Пользователь не найден');
     }
-
-       
-
 
     const nowpaymentid = user._doc.nowpaymentid;
 
@@ -693,15 +697,14 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 
       console.log('transactionId=', response.data.result);
 
-     // coin,
-        // sum,
-        // tlgid,
-        // adress,
-        // networkFees,
-        // ourComission,
-        // qtyToSend,
-        // qtyForApiRqst
-
+      // coin,
+      // sum,
+      // tlgid,
+      // adress,
+      // networkFees,
+      // ourComission,
+      // qtyToSend,
+      // qtyForApiRqst
 
       const createRqst = await createRqstTrtFromuserToMain(
         transactionId,
@@ -712,8 +715,7 @@ app.post('/api/rqst_to_payout', async (req, res) => {
         req.body.networkFees,
         req.body.ourComission,
         req.body.qtyToSend,
-        req.body.qtyForApiRqst,
-
+        req.body.qtyForApiRqst
       );
 
       if (createRqst === 'created') {
@@ -730,16 +732,15 @@ app.post('/api/rqst_to_payout', async (req, res) => {
   }
 });
 
-        // transactionId,
-        // req.body.coin,
-        // req.body.sum,
-        // nowpaymentid,
-        // req.body.adress,
-        // req.body.networkFees,
-        // req.body.ourComission,
-        // req.body.qtyToSend,
-        // req.body.qtyForApiRqst, 
-
+// transactionId,
+// req.body.coin,
+// req.body.sum,
+// nowpaymentid,
+// req.body.adress,
+// req.body.networkFees,
+// req.body.ourComission,
+// req.body.qtyToSend,
+// req.body.qtyForApiRqst,
 
 async function createRqstTrtFromuserToMain(
   transactionId,
@@ -762,8 +763,8 @@ async function createRqstTrtFromuserToMain(
       adress: adress,
       networkFees: networkFees,
       ourComission: ourComission,
-      qtyToSend:qtyToSend,
-      qtyForApiRqst:qtyForApiRqst
+      qtyToSend: qtyToSend,
+      qtyForApiRqst: qtyForApiRqst,
     });
 
     const user = await rqst.save();
@@ -855,15 +856,17 @@ async function processWebhookPayout(payload) {
     const foundUser = await UserModel.findOne({
       nowpaymentid: updatedItem.userIdAtNP,
     });
-    const coin = payload.currency
+    const coin = payload.currency;
     const language = foundUser.language;
     const tlgid = foundUser.tlgid;
     const type = 'payout';
-    const textQtyCoins = Number((Number(payload.amount) - Number(payload.fee)).toFixed(6))
-    
+    const textQtyCoins = Number(
+      (Number(payload.amount) - Number(payload.fee)).toFixed(6)
+    );
+
     const textToSendUser = textQtyCoins + ' ' + coin.toUpperCase();
     console.log('переход к функции сенд мсг');
-    sendTlgMessage(tlgid, language, type,textToSendUser);
+    sendTlgMessage(tlgid, language, type, textToSendUser);
   }
 }
 
@@ -969,7 +972,6 @@ async function processWebhookPayin(payload) {
     sendTlgMessage(tlgid, language, type, textToSendUser);
   }
 }
-
 
 function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   const { title, text } = TEXTS[type]?.[language];
@@ -1122,14 +1124,9 @@ app.get('/api/get_my_payout', async (req, res) => {
   }
 });
 
-
-
-
-
 //получить мин сумму для вывода и нашу комиссию
 app.get('/api/get_info_for_payout', async (req, res) => {
   try {
-    
     const response = await axios.get(
       `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
       {
@@ -1139,28 +1136,34 @@ app.get('/api/get_info_for_payout', async (req, res) => {
       }
     );
 
-    let status = false
+    let status = false;
 
-    let minSumToWithdraw = 'not available'
-    if (response.data && response.data.success === true){
-      minSumToWithdraw = response.data.result
+    let minSumToWithdraw = 'not available';
+    if (response.data && response.data.success === true) {
+      minSumToWithdraw = response.data.result;
     }
 
-    let ourComission = 'not available'
+    let ourComission = 'not available';
     const comission = await ComissionToPayoutModel.findOne({
       coin: req.query.coin,
     });
     if (comission) {
-      ourComission = Number(comission.qty)
+      ourComission = Number(comission.qty);
     }
 
-    
-    if (minSumToWithdraw !== 'not available' && ourComission !== 'not available') {
-      status = true
+    if (
+      minSumToWithdraw !== 'not available' &&
+      ourComission !== 'not available'
+    ) {
+      status = true;
     }
 
-    return res.json({minSumToWithdraw,ourComission,status,coin:req.query.coin});
-    
+    return res.json({
+      minSumToWithdraw,
+      ourComission,
+      status,
+      coin: req.query.coin,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -1169,13 +1172,9 @@ app.get('/api/get_info_for_payout', async (req, res) => {
   }
 });
 
-
-
-
-//получить комиссию сети за вывод монеты 
+//получить комиссию сети за вывод монеты
 app.get('/api/get_withdrawal_fee', async (req, res) => {
   try {
-    
     const response = await axios.get(
       `https://api.nowpayments.io/v1/payout/fee?currency=${req.query.coin}&amount=${req.query.amount}`,
       {
@@ -1185,15 +1184,13 @@ app.get('/api/get_withdrawal_fee', async (req, res) => {
       }
     );
 
-    let networkFees = false
+    let networkFees = false;
 
-    if (response.data){
-      networkFees = response.data.fee
+    if (response.data) {
+      networkFees = response.data.fee;
     }
-    
-    
-    return res.json({networkFees});
-    
+
+    return res.json({ networkFees });
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -1201,15 +1198,6 @@ app.get('/api/get_withdrawal_fee', async (req, res) => {
     });
   }
 });
-
-
-
-
-
-
-
-
-
 
 app.listen(PORT, (err) => {
   if (err) {
