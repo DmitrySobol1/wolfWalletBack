@@ -857,9 +857,10 @@ async function processWebhookPayout(payload) {
     });
     const language = foundUser.language;
     const tlgid = foundUser.tlgid;
-    console.log('переход к функции сенд мсг');
     const type = 'payout';
     const textQtyCoins = Number((Number(payload.amount) - Number(payload.fee)).toFixed(6))
+    console.log('переход к функции сенд мсг');
+    console.log('пtextQtyCoins=',textQtyCoins);
     sendTlgMessage(tlgid, language, type,textQtyCoins);
   }
 }
