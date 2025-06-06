@@ -1363,9 +1363,19 @@ app.get('/api/get_transfer_fee', async (req, res) => {
       coin: req.query.coin,
     });
 
+    const user = await UserModel.findOne({
+      tlgid: req.query.tlgid,
+    });
+
+    let selfNowpaymentid=0;
+    if(user) {
+    selfNowpaymentid = user.nowpaymentid
+    }
+
     if (fees) {
       const response = {
         ...fees.toObject(),
+        selfNowpaymentid,
         status: 'ok',
       };
 
@@ -1427,7 +1437,7 @@ app.post('/api/rqst_to_transfer', async (req, res) => {
     const fromUserNP = user._doc.nowpaymentid;
 
     let item_id = '';
-    const qtyToTransfer = Number(req.body.sum) - Number(req.body.ourComission);
+    const qtyToTransfer = (Number(req.body.sum) - Number(req.body.ourComission)).toFixed(6);
 
     const token = await getTokenFromNowPayment();
 
