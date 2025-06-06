@@ -104,6 +104,7 @@ export async function executeCheckTask2() {
         const receiver = await UserModel.findOne({
           nowpaymentid: item.toUserNP,
         });
+
         const tlgidReceiver = receiver.tlgid;
         const languageReceiver = receiver.language;
 
@@ -112,6 +113,11 @@ export async function executeCheckTask2() {
           languageReceiver,
           'receiver',
           textQtyCoins
+        );
+
+        await RqstTransferToOtherUserModel.findOneAndUpdate(
+          { _id: item._id },
+          { $set: { toUserTlgid: tlgidReceiver } }
         );
       }
     }

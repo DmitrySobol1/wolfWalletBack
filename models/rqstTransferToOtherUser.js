@@ -1,17 +1,5 @@
 import mongoose from 'mongoose';
-
-
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
+  
 
 const RqstTransferToOtherUserSchema = new mongoose.Schema(
   {
@@ -63,7 +51,11 @@ const RqstTransferToOtherUserSchema = new mongoose.Schema(
     qtyToTransfer: {
       type: Number,
       required: true,
-    }
+    },
+    toUserTlgid: {
+      type: Number,
+      required: true,
+    },
 
   },
   {
