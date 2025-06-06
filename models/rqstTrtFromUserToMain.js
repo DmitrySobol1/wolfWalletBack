@@ -20,7 +20,7 @@ const RqstTrtFromUserToMainSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    userIdAtNP: {
+    fromUserNP: {
       type: String,
       required: true,
     },

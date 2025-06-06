@@ -2,9 +2,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import UserModel from './models/user.js';
 import ComissionToPayoutModel from './models/comissionToPayout.js';
+import ComissionToTransferModel from './models/comissionToTransfer.js';
 import RqstTrtFromUserToMainModel from './models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from './models/verifiedPayouts.js';
 import RqstPayInModel from './models/rqstPayIn.js';
+import RqstTransferToOtherUserModel from './models/rqstTransferToOtherUser.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -120,15 +122,20 @@ app.post('/api/get_user_balance', async (req, res) => {
 
     const valute = userData.valute;
 
-    let symbol = '₽'
+    let symbol = '₽';
     if (valute === 'usd') {
-      symbol= '$';
+      symbol = '$';
     } else if (valute === 'eur') {
-      symbol= '€';
-    } 
+      symbol = '€';
+    }
 
     if (userData.nowpaymentid === 0) {
-      return res.json({ balance: 0, language:language, valute:valute, symbol:symbol });
+      return res.json({
+        balance: 0,
+        language: language,
+        valute: valute,
+        symbol: symbol,
+      });
       // return res.json({ balance: 0, language:language, valute:valute });
     }
 
@@ -697,15 +704,6 @@ app.post('/api/rqst_to_payout', async (req, res) => {
 
       console.log('transactionId=', response.data.result);
 
-      // coin,
-      // sum,
-      // tlgid,
-      // adress,
-      // networkFees,
-      // ourComission,
-      // qtyToSend,
-      // qtyForApiRqst
-
       const createRqst = await createRqstTrtFromuserToMain(
         transactionId,
         req.body.coin,
@@ -732,16 +730,6 @@ app.post('/api/rqst_to_payout', async (req, res) => {
   }
 });
 
-// transactionId,
-// req.body.coin,
-// req.body.sum,
-// nowpaymentid,
-// req.body.adress,
-// req.body.networkFees,
-// req.body.ourComission,
-// req.body.qtyToSend,
-// req.body.qtyForApiRqst,
-
 async function createRqstTrtFromuserToMain(
   transactionId,
   coin,
@@ -751,7 +739,8 @@ async function createRqstTrtFromuserToMain(
   networkFees,
   ourComission,
   qtyToSend,
-  qtyForApiRqst
+  qtyForApiRqst,
+  type
 ) {
   try {
     const rqst = new RqstTrtFromUserToMainModel({
@@ -765,6 +754,7 @@ async function createRqstTrtFromuserToMain(
       ourComission: ourComission,
       qtyToSend: qtyToSend,
       qtyForApiRqst: qtyForApiRqst,
+      type: type,
     });
 
     const user = await rqst.save();
@@ -1198,6 +1188,295 @@ app.get('/api/get_withdrawal_fee', async (req, res) => {
     });
   }
 });
+
+// получение инфо о nowpayment id + создать, если не существует
+app.post('/api/get_user_id', async (req, res) => {
+  try {
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+    const { ...userData } = user._doc;
+
+    const nowpaymentid = userData.nowpaymentid;
+
+    console.log(userData);
+
+    // if (userData.nowpaymentid === 0) {
+    //   // вернуть на фронт, что не существует
+    //   return res.json({ nowpaymentid: 0 });
+
+    // }
+
+    // const response = await axios.get(
+    //   `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
+    //   {
+    //     headers: {
+    //       'x-api-key': process.env.NOWPAYMENTSAPI,
+    //     },
+    //   }
+    // );
+
+    return res.json({ nowpaymentid: nowpaymentid });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+// создать id в nowpayment
+app.post('/api/create_user_NpId', async (req, res) => {
+  try {
+    const token = await getTokenFromNowPayment();
+
+    const nowpaymentid = await createUserInNowPayment(token, req.body.tlgid);
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { tlgid: req.body.tlgid },
+      { $set: { nowpaymentid: nowpaymentid } },
+      { new: true } // Вернуть обновленную запись
+    );
+
+    console.log('UPDATED USER=', updatedUser);
+
+    return res.json({ nowpaymentid: nowpaymentid });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+//сохранить новую комиссию за трансфер
+app.post('/api/save_new_transfercomission', async (req, res) => {
+  const doc = new ComissionToTransferModel({
+    qty: 0.01,
+    coin: 'ton',
+  });
+
+  const comission = await doc.save();
+  return res.json({ status: 'saved' });
+});
+
+
+//получить нашу комиссию за трансфер между пользователями
+app.get('/api/get_transfer_fee', async (req, res) => {
+  try {
+    const fees = await ComissionToTransferModel.findOne({
+      coin: req.query.coin,
+    });
+
+    if (fees) {
+      const response = {
+        ...fees.toObject(),
+        status: 'ok',
+      };
+
+      return res.json(response);
+    } else {
+      return res.status(404).json({
+        status: 'coin not found',
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+// проверка существует ли юзер
+app.post('/api/get_user', async (req, res) => {
+  try {
+    const token = await getTokenFromNowPayment();
+
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/sub-partner?id=${req.body.adress}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return res.json({ count: response.data.count });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+//создать запрос на трансфер другому юзеру
+app.post('/api/rqst_to_transfer', async (req, res) => {
+  try {
+    // //         coin,
+    // //         sum,
+    // //         tlgid,
+    // //         adress,
+    // //         ourComission,
+
+    // найти nowPayment id по тлг id
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+
+    if (!user) {
+      return res.status(404).send('Пользователь не найден');
+    }
+
+    console.log('step 1', user);
+
+    const fromUserNP = user._doc.nowpaymentid;
+
+    let item_id = '';
+    const qtyToTransfer = Number(req.body.sum) - Number(req.body.ourComission);
+
+    const token = await getTokenFromNowPayment();
+
+    //делаем перевод с счета клиента на мастер счет, это когда комиссия не равна 0
+    if (req.body.ourComission != 0) {
+      const requestData = {
+        currency: String(req.body.coin),
+        amount: Number(req.body.ourComission),
+        sub_partner_id: String(fromUserNP),
+      };
+
+      const response = await axios.post(
+        'https://api.nowpayments.io/v1/sub-partner/write-off',
+        requestData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000, // 10 секунд таймаут
+        }
+      );
+
+      console.log('step 2', response.data);
+
+      if (response.data.result.status === 'PROCESSING') {
+        const transactionId_comission = response.data.result.id;
+
+        const statusComission = 'new';
+        const our_comission = req.body.ourComission;
+
+        item_id = await createRqstTransferToOtherUserModel(
+          transactionId_comission,
+          req.body.coin,
+          req.body.sum,
+          fromUserNP,
+          req.body.adress,
+          our_comission,
+          req.body.tlgid,
+          statusComission,
+          qtyToTransfer
+        );
+
+        console.log('step 4 ifNe0 RQST=', item_id);
+      }
+
+      //когда комиссия не равна 0 - перевод на мастер счет не делаем, просто создаем запись в БД
+    } else if (req.body.ourComission == 0) {
+      const transactionId_comission = 0;
+      const statusComission = 'finished';
+      const our_comission = 0;
+
+      item_id = await createRqstTransferToOtherUserModel(
+        transactionId_comission,
+        req.body.coin,
+        req.body.sum,
+        fromUserNP,
+        req.body.adress,
+        our_comission,
+        req.body.tlgid,
+        statusComission,
+        qtyToTransfer
+      );
+
+      console.log('step 4 if0 RQST=', item_id);
+    }
+
+    const requestData = {
+      currency: String(req.body.coin),
+      amount: Number(qtyToTransfer),
+      from_id: String(fromUserNP),
+      to_id: String(req.body.adress),
+    };
+
+
+    console.log('step 5 requestData=', requestData);
+
+    const transferResponse = await axios.post(
+      'https://api.nowpayments.io/v1/sub-partner/transfer',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 секунд таймаут
+      }
+    );
+
+    const transactionId_transferToUser=transferResponse.data.result.id
+console.log('step 6 transef', transferResponse.data);
+
+//поменять инфо в БД
+  const updatedItem = await RqstTransferToOtherUserModel.findOneAndUpdate(
+    { _id: item_id.item_id },
+    {
+      $set: {
+        transactionId_transferToUser: Number(transactionId_transferToUser),
+        statusTransferToUser: 'new',
+      },
+    }
+  );
+
+  return res.json({ status: 'OK' });
+
+    
+  } catch {}
+});
+
+
+
+async function createRqstTransferToOtherUserModel(
+  transactionId_comission,
+  coin,
+  sum,
+  fromUserNP,
+  adress,
+  ourComission,
+  tlgid,
+  statusComission,
+  qtyToTransfer
+) {
+  try {
+    const rqst = new RqstTransferToOtherUserModel({
+      transactionId_comission: transactionId_comission,
+      coin: coin,
+      totalSum: sum,
+      fromUserNP: fromUserNP,
+      toUserNP: adress,
+      ourComission: ourComission,
+      fromUserTlgid: tlgid,
+      statusComission: statusComission,
+      statusAll: 'new',
+      transactionId_transferToUser: 0,
+      statusTransferToUser: '0',
+      qtyToTransfer: qtyToTransfer,
+    });
+
+    const item = await rqst.save();
+
+    console.log('step 3 ITEM=', item._id);
+    return { item_id: item._id.toString() };
+  } catch (err) {
+    console.log(err);
+  }
+}
 
 app.listen(PORT, (err) => {
   if (err) {

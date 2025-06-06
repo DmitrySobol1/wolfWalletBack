@@ -32,7 +32,7 @@ mongoose
 // TODO: нужно ли убирать из этого файла const app и прочее?
 
 export async function executeCheckTask() {
-  console.log('Начинаю cron...');
+  console.log('Начинаю cron1: transfer на мастер счет...');
 
   const records = await RqstTrtFromUserToMainModel.find({
     status: 'new',

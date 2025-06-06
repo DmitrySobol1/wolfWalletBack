@@ -11,13 +11,13 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 cron.schedule(
   '* * * * *',
   async () => {
-    console.log('🚀 Запуск ежедневной задачи...', new Date().toISOString());
+    console.log('🚀 Запуск задачи1...', new Date().toISOString());
 
     try {
       await executeCheckTask();
-      console.log('✅ Задача успешно выполнена');
+      console.log('✅ Задача1 выполнена');
     } catch (error) {
-      console.error('❌ Ошибка выполнения задачи:', error);
+      console.error('❌ Ошибка выполнения задачи1:', error);
     }
   },
   {
@@ -26,4 +26,4 @@ cron.schedule(
   }
 );
 
-console.log('⏰ Планировщик задач инициализирован, check port=',process.env.PORT);
+console.log('⏰ Планировщик задач1 инициализирован, check port=',process.env.PORT);
