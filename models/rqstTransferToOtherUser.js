@@ -53,8 +53,8 @@ const RqstTransferToOtherUserSchema = new mongoose.Schema(
       required: true,
     },
     toUserTlgid: {
-      type: Number,
-      required: true,
+      type: Number
+      
     },
 
   },
