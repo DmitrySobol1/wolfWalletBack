@@ -1010,7 +1010,7 @@ app.get('/api/get_my_payin', async (req, res) => {
 
 
     if (!payins && !transfers || payins.length === 0 && transfers.length ===0) {
-      return res.status(404).json({ status: 'no' });
+      return res.status(200).json({ status: 'no' });
     }
 
     const months = [
@@ -1115,9 +1115,21 @@ app.get('/api/get_my_payout', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    if (!payouts || payouts.length === 0) {
-      return res.status(404).json({ status: 'no' });
+    
+      const transfers = await RqstTransferToOtherUserModel.find({
+      statusAll: 'finished',
+      fromUserTlgid: tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+
+      if (!payouts && !transfers || payouts.length === 0 && transfers.length ===0) {
+      return res.status(200).json({ status: 'no' });
     }
+
+
+    
 
     const months = [
       'янв',
@@ -1142,16 +1154,53 @@ app.get('/api/get_my_payout', async (req, res) => {
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
       // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
+      // return {
+      //   ...item,
+      //   formattedDate: `${day} ${month} ${hours}:${minutes}`,
+      // };
+
       return {
-        ...item,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
-      };
+          coin: item.coin,
+          qty: item.qtyToSend,
+          formattedDate: `${day} ${month} ${hours}:${minutes}`,
+          type: 'payout',
+          forSort: item.updatedAt
+      }
+
     });
+
+
+     const processedTransfers = transfers.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
+      // return {
+      //   ...item,
+      //   formattedDate: `${day} ${month} ${hours}:${minutes}`,
+      // };
+
+      return {
+          coin: item.coin,
+          qty: item.qtyToTransfer,
+          formattedDate: `${day} ${month} ${hours}:${minutes}`,
+          type: 'transfer',
+          forSort: item.updatedAt
+      }
+
+    });
+
+const total = [...processedPayouts, ...processedTransfers].sort((a, b) => b.forSort - a.forSort);
+
+   console.log('total',total)
 
     return res.status(200).json({
       status: 'ok',
-      count: processedPayouts.length,
-      data: processedPayouts,
+      count: total.length,
+      data: total,
     });
   } catch (err) {
     console.error('Ошибка в /api/get_my_payout:', err);
