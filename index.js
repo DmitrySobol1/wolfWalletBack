@@ -5,6 +5,7 @@ import ComissionToPayoutModel from './models/comissionToPayout.js';
 import ComissionToTransferModel from './models/comissionToTransfer.js';
 import RqstTrtFromUserToMainModel from './models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from './models/verifiedPayouts.js';
+import ComissionExchangeModel from './models/comissionToExchange.js';
 import RqstPayInModel from './models/rqstPayIn.js';
 import RqstTransferToOtherUserModel from './models/rqstTransferToOtherUser.js';
 import crypto from 'crypto';
@@ -668,6 +669,38 @@ app.get('/api/get_comission', async (req, res) => {
   }
 });
 
+//сохранить новую комиссию за обмен (числа в процентах!!!!!)
+app.post('/api/save_new_comissionExchange', async (req, res) => {
+  const doc = new ComissionExchangeModel({
+    qty: req.body.qty, // в процентах!!!!
+    coin: req.body.coin,
+  });
+
+  const comission = await doc.save();
+
+  res.status(200).json({
+    message: 'new saved',
+  });
+});
+
+// получить список комиссий за обмен
+app.get('/api/get_comissionExchange', async (req, res) => {
+  try {
+    const commissions = await ComissionExchangeModel.find().lean();
+
+    if (!commissions.length) {
+      return res.status(404).json({ status: 'no found' });
+    }
+
+    res.json({
+      status: 'success',
+      data: commissions,
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'server error', error: error.message });
+  }
+});
+
 //создать запрос на вывод монет (перевод с юзер счета на мастер счет)
 app.post('/api/rqst_to_payout', async (req, res) => {
   try {
@@ -1000,7 +1033,6 @@ app.get('/api/get_my_payin', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-
     const transfers = await RqstTransferToOtherUserModel.find({
       statusAll: 'finished',
       toUserTlgid: req.query.tlgid,
@@ -1008,8 +1040,10 @@ app.get('/api/get_my_payin', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-
-    if (!payins && !transfers || payins.length === 0 && transfers.length ===0) {
+    if (
+      (!payins && !transfers) ||
+      (payins.length === 0 && transfers.length === 0)
+    ) {
       return res.status(200).json({ status: 'no' });
     }
 
@@ -1035,19 +1069,14 @@ app.get('/api/get_my_payin', async (req, res) => {
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      
-          
-        return {
-          coin: item.price_currency,
-          qty: item.amount_received,
-          formattedDate: `${day} ${month} ${hours}:${minutes}`,
-          type: 'payin',
-          forSort: item.updatedAt
-      }
-
+      return {
+        coin: item.price_currency,
+        qty: item.amount_received,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'payin',
+        forSort: item.updatedAt,
+      };
     });
-
-
 
     const processedTransfers = transfers.map((item) => {
       const date = new Date(item.updatedAt);
@@ -1056,24 +1085,20 @@ app.get('/api/get_my_payin', async (req, res) => {
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-
-          
-        return {
-          coin: item.coin,
-          qty: item.qtyToTransfer,
-          formattedDate: `${day} ${month} ${hours}:${minutes}`,
-          type: 'transfer',
-          forSort: item.updatedAt
-      }
-
-      
+      return {
+        coin: item.coin,
+        qty: item.qtyToTransfer,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'transfer',
+        forSort: item.updatedAt,
+      };
     });
-    
-   const total = [...processedPayins, ...processedTransfers].sort((a, b) => b.forSort - a.forSort);
 
-   console.log('total',total)
-    
+    const total = [...processedPayins, ...processedTransfers].sort(
+      (a, b) => b.forSort - a.forSort
+    );
 
+    console.log('total', total);
 
     return res.status(200).json({
       status: 'ok',
@@ -1115,21 +1140,19 @@ app.get('/api/get_my_payout', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    
-      const transfers = await RqstTransferToOtherUserModel.find({
+    const transfers = await RqstTransferToOtherUserModel.find({
       statusAll: 'finished',
       fromUserTlgid: tlgid,
     })
       .sort({ updatedAt: -1 })
       .lean();
 
-
-      if (!payouts && !transfers || payouts.length === 0 && transfers.length ===0) {
+    if (
+      (!payouts && !transfers) ||
+      (payouts.length === 0 && transfers.length === 0)
+    ) {
       return res.status(200).json({ status: 'no' });
     }
-
-
-    
 
     const months = [
       'янв',
@@ -1160,17 +1183,15 @@ app.get('/api/get_my_payout', async (req, res) => {
       // };
 
       return {
-          coin: item.coin,
-          qty: item.qtyToSend,
-          formattedDate: `${day} ${month} ${hours}:${minutes}`,
-          type: 'payout',
-          forSort: item.updatedAt
-      }
-
+        coin: item.coin,
+        qty: item.qtyToSend,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'payout',
+        forSort: item.updatedAt,
+      };
     });
 
-
-     const processedTransfers = transfers.map((item) => {
+    const processedTransfers = transfers.map((item) => {
       const date = new Date(item.updatedAt);
       const day = date.getDate();
       const month = months[date.getMonth()];
@@ -1184,18 +1205,19 @@ app.get('/api/get_my_payout', async (req, res) => {
       // };
 
       return {
-          coin: item.coin,
-          qty: item.qtyToTransfer,
-          formattedDate: `${day} ${month} ${hours}:${minutes}`,
-          type: 'transfer',
-          forSort: item.updatedAt
-      }
-
+        coin: item.coin,
+        qty: item.qtyToTransfer,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'transfer',
+        forSort: item.updatedAt,
+      };
     });
 
-const total = [...processedPayouts, ...processedTransfers].sort((a, b) => b.forSort - a.forSort);
+    const total = [...processedPayouts, ...processedTransfers].sort(
+      (a, b) => b.forSort - a.forSort
+    );
 
-   console.log('total',total)
+    console.log('total', total);
 
     return res.status(200).json({
       status: 'ok',
@@ -1355,7 +1377,6 @@ app.post('/api/save_new_transfercomission', async (req, res) => {
   return res.json({ status: 'saved' });
 });
 
-
 //получить нашу комиссию за трансфер между пользователями
 app.get('/api/get_transfer_fee', async (req, res) => {
   try {
@@ -1367,9 +1388,9 @@ app.get('/api/get_transfer_fee', async (req, res) => {
       tlgid: req.query.tlgid,
     });
 
-    let selfNowpaymentid=0;
-    if(user) {
-    selfNowpaymentid = user.nowpaymentid
+    let selfNowpaymentid = 0;
+    if (user) {
+      selfNowpaymentid = user.nowpaymentid;
     }
 
     if (fees) {
@@ -1437,7 +1458,9 @@ app.post('/api/rqst_to_transfer', async (req, res) => {
     const fromUserNP = user._doc.nowpaymentid;
 
     let item_id = '';
-    const qtyToTransfer = (Number(req.body.sum) - Number(req.body.ourComission)).toFixed(6);
+    const qtyToTransfer = (
+      Number(req.body.sum) - Number(req.body.ourComission)
+    ).toFixed(6);
 
     const token = await getTokenFromNowPayment();
 
@@ -1512,7 +1535,6 @@ app.post('/api/rqst_to_transfer', async (req, res) => {
       to_id: String(req.body.adress),
     };
 
-
     console.log('step 5 requestData=', requestData);
 
     const transferResponse = await axios.post(
@@ -1527,27 +1549,23 @@ app.post('/api/rqst_to_transfer', async (req, res) => {
       }
     );
 
-    const transactionId_transferToUser=transferResponse.data.result.id
-console.log('step 6 transef', transferResponse.data);
+    const transactionId_transferToUser = transferResponse.data.result.id;
+    console.log('step 6 transef', transferResponse.data);
 
-//поменять инфо в БД
-  const updatedItem = await RqstTransferToOtherUserModel.findOneAndUpdate(
-    { _id: item_id.item_id },
-    {
-      $set: {
-        transactionId_transferToUser: Number(transactionId_transferToUser),
-        statusTransferToUser: 'new',
-      },
-    }
-  );
+    //поменять инфо в БД
+    const updatedItem = await RqstTransferToOtherUserModel.findOneAndUpdate(
+      { _id: item_id.item_id },
+      {
+        $set: {
+          transactionId_transferToUser: Number(transactionId_transferToUser),
+          statusTransferToUser: 'new',
+        },
+      }
+    );
 
-  return res.json({ status: 'OK' });
-
-    
+    return res.json({ status: 'OK' });
   } catch {}
 });
-
-
 
 async function createRqstTransferToOtherUserModel(
   transactionId_comission,
@@ -1584,6 +1602,127 @@ async function createRqstTransferToOtherUserModel(
     console.log(err);
   }
 }
+
+app.get('/api/get_conversion_rate', async (req, res) => {
+  try {
+    const amount = Number(req.query.amount);
+    const coinFrom = req.query.coinFrom;
+    const coinTo = req.query.coinTo;
+
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/estimate?amount=${amount}&currency_from=${coinFrom}&currency_to=${coinTo}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    const convertedAmount = response.data.estimated_amount;
+
+    return res.status(200).json({
+      status: 'ok',
+      convertedAmount: convertedAmount,
+    });
+  } catch (err) {
+    console.error('Ошибка в /api/get_conversion_rate:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера',
+    });
+  }
+});
+
+app.get('/api/get_minamount', async (req, res) => {
+  try {
+    const minAmount = await getMinAmountForDeposit(req.query.coinFrom);
+
+    
+    return res.status(200).json({
+      status: 'ok',
+      minAmount: minAmount,
+    });
+  } catch (err) {
+    console.error('Ошибка в /api/get_minamount:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера',
+    });
+  }
+});
+
+
+
+
+
+// получение баланса юзера в выбранной валюте, для отображения на вкладке обмена
+app.get('/api/get_balance_currentCoin', async (req, res) => {
+  try {
+    const tlgid = req.query.tlgid;
+    const coin = req.query.coin
+
+    const user = await UserModel.findOne({ tlgid: tlgid });
+    const valute = user.valute;
+
+    
+    if (user) {
+      const nowpaymentid = user._doc.nowpaymentid;
+
+      const response = await axios.get(
+        `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
+        {
+          headers: {
+            'x-api-key': process.env.NOWPAYMENTSAPI,
+          },
+        }
+      );
+
+      const userBalance = response.data.result.balances;
+      
+
+
+      const arrayOfUserBalance = Object.entries(userBalance).map(
+        ([key, value]) => ({
+          currency: key, // кладем ключ внутрь объекта
+          ...value, // распаковываем остальные свойства
+        })
+      );
+      
+
+      arrayOfUserBalance.map(item =>{
+        if(item.currency ===coin){
+          return res.json( {
+            coin: coin,
+            balance: item.amount
+          })
+        } else {
+          return res.json( {
+            coin: coin,
+            balance: 0
+          })
+      }})
+
+      // return res.json({ arrayOfUserBalanceWithUsdPrice });
+
+    } else {
+      console.log('такого нет');
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+
+
+
+
+
+
+
+
 
 app.listen(PORT, (err) => {
   if (err) {
