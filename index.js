@@ -244,7 +244,7 @@ app.get('/api/get_available_coins', async (req, res) => {
     return res.json(response.data);
   } catch (err) {
     console.log(err);
-    res.status(500).json({
+    res.json({
       message: 'ошибка сервера',
     });
   }
@@ -554,7 +554,10 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
           const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
           const fiatK = parseFloat(fiatKoefficient) || 0;
 
-          if (amount > 0) {
+
+          const epsilon = 1e-20
+
+          if (amount > 0 && Math.abs(amount - 2e-18) > epsilon ) {
             const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
             const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(
               2
@@ -679,7 +682,7 @@ app.post('/api/save_new_comissionExchange', async (req, res) => {
 
   const comission = await doc.save();
 
-  res.status(200).json({
+  res.json({
     message: 'new saved',
   });
 });
@@ -1658,7 +1661,7 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
     const coin = req.query.coin;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
-    const valute = user.valute;
+    // const valute = user.valute;
 
     if (user) {
       const nowpaymentid = user._doc.nowpaymentid;
@@ -1672,28 +1675,38 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
         }
       );
 
+      
       const userBalance = response.data.result.balances;
-
+      
+      
       const arrayOfUserBalance = Object.entries(userBalance).map(
         ([key, value]) => ({
           currency: key, // кладем ключ внутрь объекта
           ...value, // распаковываем остальные свойства
         })
       );
-
+      
+      console.log('2 | userBalance',arrayOfUserBalance)
+      
       arrayOfUserBalance.map((item) => {
-        if (item.currency === coin) {
+
+        const epsilon = 1e-20
+         
+
+        if (item.currency === coin && Math.abs(item.amount - 2e-18) > epsilon) {
           return res.json({
             coin: coin,
             balance: item.amount,
           });
-        } else {
-          return res.json({
+        }         
+        
+      });
+
+      // если не найдено
+      return res.json({
             coin: coin,
             balance: 0,
           });
-        }
-      });
 
       // return res.json({ arrayOfUserBalanceWithUsdPrice });
     } else {
