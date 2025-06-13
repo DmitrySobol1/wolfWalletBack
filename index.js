@@ -8,6 +8,7 @@ import VerifiedPayoutsModel from './models/verifiedPayouts.js';
 import ComissionExchangeModel from './models/comissionToExchange.js';
 import RqstPayInModel from './models/rqstPayIn.js';
 import RqstTransferToOtherUserModel from './models/rqstTransferToOtherUser.js';
+import RqstExchangeSchemaModel from './models/rqstExchange.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -1637,7 +1638,6 @@ app.get('/api/get_minamount', async (req, res) => {
   try {
     const minAmount = await getMinAmountForDeposit(req.query.coinFrom);
 
-    
     return res.status(200).json({
       status: 'ok',
       minAmount: minAmount,
@@ -1651,20 +1651,15 @@ app.get('/api/get_minamount', async (req, res) => {
   }
 });
 
-
-
-
-
 // получение баланса юзера в выбранной валюте, для отображения на вкладке обмена
 app.get('/api/get_balance_currentCoin', async (req, res) => {
   try {
     const tlgid = req.query.tlgid;
-    const coin = req.query.coin
+    const coin = req.query.coin;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
     const valute = user.valute;
 
-    
     if (user) {
       const nowpaymentid = user._doc.nowpaymentid;
 
@@ -1678,8 +1673,6 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
       );
 
       const userBalance = response.data.result.balances;
-      
-
 
       const arrayOfUserBalance = Object.entries(userBalance).map(
         ([key, value]) => ({
@@ -1687,23 +1680,22 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
           ...value, // распаковываем остальные свойства
         })
       );
-      
 
-      arrayOfUserBalance.map(item =>{
-        if(item.currency ===coin){
-          return res.json( {
+      arrayOfUserBalance.map((item) => {
+        if (item.currency === coin) {
+          return res.json({
             coin: coin,
-            balance: item.amount
-          })
+            balance: item.amount,
+          });
         } else {
-          return res.json( {
+          return res.json({
             coin: coin,
-            balance: 0
-          })
-      }})
+            balance: 0,
+          });
+        }
+      });
 
       // return res.json({ arrayOfUserBalanceWithUsdPrice });
-
     } else {
       console.log('такого нет');
     }
@@ -1717,10 +1709,106 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
 
 
 
+//перевод с Юзер счета на Мастер счет для Обмена
+app.post('/api/rqst_fromUser_toMaster', async (req, res) => {
+  try {
+    const token = await getTokenFromNowPayment();
 
+    // найти nowPayment id по тлг id
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
+    if (!user) {
+      return res.status(404).send('Пользователь не найден');
+    }
 
+    const nowpaymentid = user._doc.nowpaymentid;
+    const language = user._doc.language;
 
+    const requestData = {
+      currency: String(req.body.coinFrom),
+      amount: Number(req.body.amount),
+      sub_partner_id: String(nowpaymentid),
+    };
+
+    const response = await axios.post(
+      'https://api.nowpayments.io/v1/sub-partner/write-off',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 секунд таймаут
+      }
+    );
+
+    if (response.data.result.status === 'PROCESSING') {
+      const id_clientToMaster = response.data.result.id;
+
+      // console.log('transactionId=', response.data.result);
+
+      const createRqst = await createRqstExchange(
+        id_clientToMaster,
+        req.body.tlgid,
+        nowpaymentid,
+        req.body.amount,
+        req.body.coinFrom,
+        req.body.convertedAmount,
+        req.body.coinTo,
+        req.body.nowpaymentComission,
+        req.body.ourComission,
+        language
+      );
+
+      if (createRqst === 'created') {
+        // console.log('createRqst=', createRqst);
+        return res.json({ status: 'OK' });
+      }
+    }
+  } catch (error) {
+    console.error('Error in createRqstTrtFromuserToMain', {
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+    });
+    throw new Error(`Error adress: ${error.message}`);
+  }
+});
+
+async function createRqstExchange(
+  id_clientToMaster,
+  tlgid,
+  nowpaymentid,
+  amount,
+  coinFrom,
+  convertedAmount,
+  coinTo,
+  nowpaymentComission,
+  ourComission,
+  language
+) {
+  try {
+    const rqst = new RqstExchangeSchemaModel({
+      id_clientToMaster: id_clientToMaster,
+      id_exchange: 0,
+      id_masterToClient: 0,
+      status: 'new',
+      tlgid: tlgid,
+      userNP: nowpaymentid,
+      amountFrom: amount,
+      coinFrom: coinFrom,
+      amountTo: convertedAmount,
+      coinTo: coinTo,
+      nowpaymentComission: nowpaymentComission,
+      ourComission: ourComission,
+      language: language,
+    });
+
+    await rqst.save();
+    return 'created';
+  } catch (err) {
+    console.log(err);
+  }
+}
 
 
 
