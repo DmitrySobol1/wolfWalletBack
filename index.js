@@ -1044,9 +1044,18 @@ app.get('/api/get_my_payin', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+    const exchange = await RqstExchangeSchemaModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+
+
     if (
-      (!payins && !transfers) ||
-      (payins.length === 0 && transfers.length === 0)
+      (!payins && !transfers && !exchange) ||
+      (payins.length === 0 && transfers.length === 0 && exchange.length === 0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
@@ -1098,7 +1107,28 @@ app.get('/api/get_my_payin', async (req, res) => {
       };
     });
 
-    const total = [...processedPayins, ...processedTransfers].sort(
+
+    const processedExchanges = exchange.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.coinTo,
+        qty: item.amountTo,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'exchange',
+        forSort: item.updatedAt,
+      };
+    });
+
+
+
+
+
+    const total = [...processedPayins, ...processedTransfers, ...processedExchanges].sort(
       (a, b) => b.forSort - a.forSort
     );
 
@@ -1151,9 +1181,17 @@ app.get('/api/get_my_payout', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+
+    const exchange = await RqstExchangeSchemaModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();  
+
     if (
-      (!payouts && !transfers) ||
-      (payouts.length === 0 && transfers.length === 0)
+      (!payouts && !transfers && !exchange) ||
+      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
@@ -1217,7 +1255,26 @@ app.get('/api/get_my_payout', async (req, res) => {
       };
     });
 
-    const total = [...processedPayouts, ...processedTransfers].sort(
+
+     const processedExchanges = exchange.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.coinFrom,
+        qty: item.amountFrom,
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: 'exchange',
+        forSort: item.updatedAt,
+      };
+    });
+
+
+
+    const total = [...processedPayouts, ...processedTransfers, ...processedExchanges].sort(
       (a, b) => b.forSort - a.forSort
     );
 
