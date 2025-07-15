@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-// import dotenv from 'dotenv';
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 //FIXME:
 //для прода
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+// import dotenv from 'dotenv';
+// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-// executeCheckTask();
+executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
@@ -226,7 +226,7 @@ export async function executeCheckTask() {
 
     if (item.status == 'orderPlaced') {
 
-      const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin1full,item.coin1chain,item.coin2chain );
+      const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin2full,item.coin1chain,item.coin2chain );
 
       const amountToSendToNp = checkOrderExecutionResult.amount
       const coinToSendToNp = checkOrderExecutionResult.coin
@@ -235,6 +235,10 @@ export async function executeCheckTask() {
 
       console.log('step 12 | from code | amountToSendToNp = ',amountToSendToNp)
       console.log('step 12 | from code | coinToSendToNp = ',coinToSendToNp)
+      console.log('step 12 | from code | coinToSendToNpFull = ',coinToSendToNpFull)
+      console.log('step 12 | from code | chainToSendToNp = ',chainToSendToNp)
+
+     
 
 
        //TODO: для быстрых тестов
@@ -245,6 +249,9 @@ export async function executeCheckTask() {
       const getNpAdressResult = await getNpAdress(item.userNP,coinToSendToNpFull,amountToSendToNp )
       const adresssValue = getNpAdressResult.adress
       const idValue = getNpAdressResult.uid
+
+  
+    
 
       await RqstStockMarketOrderModel.findOneAndUpdate(
         { _id: item._id },
@@ -1059,8 +1066,9 @@ async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
        remark: "this is Remark"
       };
 
-
       console.log('orderBody=',orderBody)
+
+     
 
     const response = await axios.post(`https://api.kucoin.com${requestPath}`, 
       orderBody,
