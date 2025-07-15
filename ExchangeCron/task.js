@@ -36,7 +36,7 @@ mongoose
 // TODO: нужно ли убирать из этого файла const app и прочее?
 
 export async function executeCheckTask() {
-  console.log('Начинаю cron3: проверка прошел ли платеж с Клиент на Масте...');
+  console.log('Начинаю cron3: проверка прошел ли платеж с Клиент на Мастер...');
 
   const recordsNew = await RqstExchangeModel.find({
     status: { $in: ['new', 'exchangewaiting', 'trtMasterToClientWaiting'] },

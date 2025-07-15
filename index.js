@@ -9,6 +9,9 @@ import ComissionExchangeModel from './models/comissionToExchange.js';
 import RqstPayInModel from './models/rqstPayIn.js';
 import RqstTransferToOtherUserModel from './models/rqstTransferToOtherUser.js';
 import RqstExchangeSchemaModel from './models/rqstExchange.js';
+import TradingPairsModel from './models/tradingPairs.js';
+import RqstStockMarketOrderModel from './models/rqstStockMarketOrder.js';
+import StockAdressesModel from './models/stockAdresses.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -159,14 +162,23 @@ app.post('/api/get_user_balance', async (req, res) => {
     const arrayOfUserBalance = Object.entries(userBalance).map(
       ([key, value]) => ({
         currency: key, // кладем ключ внутрь объекта
+        currencyToFindPrices: key, //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
         ...value, // распаковываем остальные свойства
       })
     );
 
+    //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
+    arrayOfUserBalance.forEach((item) => {
+      if (item.currencyToFindPrices.includes('usdt')) {
+        item.currencyToFindPrices = 'usdt';
+      }
+    });
+
     const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance.map((item) => {
       // находим подходящий объект из cryptoPrices
       const matchingPrice = cryptoPrices.find(
-        (price) => item.currency.toLowerCase() === price.symbol.toLowerCase()
+        (price) =>
+          item.currencyToFindPrices.toLowerCase() === price.symbol.toLowerCase()
       );
 
       // возвращаем новый объект с необходимой информацией
@@ -278,6 +290,7 @@ app.post('/api/get_info_for_payinadress', async (req, res) => {
 
     const token = await getTokenFromNowPayment();
 
+
     if (userData.nowpaymentid === 0) {
       const nowpaymentid = await createUserInNowPayment(token, req.body.tlgid);
 
@@ -293,10 +306,13 @@ app.post('/api/get_info_for_payinadress', async (req, res) => {
 
     const minAmount = await getMinAmountForDeposit(req.body.coin);
 
+    //чтобы исключить колебание мин кол-ва, пока обрабатывается запрос
+    const minAmountPlus5Percent = minAmount + minAmount*0.05
+
     const payAdress = await createPayAdress(
       token,
       req.body.coin,
-      minAmount,
+      minAmountPlus5Percent,
       userData.nowpaymentid,
       req.body.tlgid
     );
@@ -341,7 +357,7 @@ async function getMinAmountForDeposit(coin) {
       },
     }
   );
-
+  // console.log('MIN=',response.data)
   return response.data.min_amount;
 }
 
@@ -443,7 +459,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid, tlgid) {
     await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
     return response.data.result.pay_address;
   } catch (error) {
-    console.error('Error in createUserInNowPayment:', {
+    console.error('Error in createPayAdress:', {
       error: error.response?.data || error.message,
       status: error.response?.status,
     });
@@ -475,36 +491,23 @@ async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
 app.get('/api/get_balance_for_pay_out', async (req, res) => {
   try {
     const tlgid = req.query.tlgid;
-    // const tlgid = req.body.tlgid;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
     const valute = user.valute;
 
     // console.log('step 1');
     // console.log('user=', user);
-    // console.log('valute', valute);
-    // // return res.json('ok1');
+    // console.log('valute=', valute);
+    // return res.json('ok1');
 
     if (user) {
       const nowpaymentid = user._doc.nowpaymentid;
 
-      // const response = await axios.get(
-      //   `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
-
-      //   {
-      //     headers: {
-      //       'x-api-key': process.env.NOWPAYMENTSAPI,
-      //     },
-      //   }
-      // );
-
-      // =============
-
       let cryptoPrices = await getCryptoPrices();
 
       // console.log('step 2');
-      // console.log('cryptoPrices', cryptoPrices);
-      // // return res.json('ok2');
+      // console.log('cryptoPrices=', cryptoPrices);
+      // return res.json('ok2');
 
       const response = await axios.get(
         `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
@@ -525,12 +528,20 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
       const arrayOfUserBalance = Object.entries(userBalance).map(
         ([key, value]) => ({
           currency: key, // кладем ключ внутрь объекта
+          currencyToFindPrices: key, //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
           ...value, // распаковываем остальные свойства
         })
       );
 
-      console.log('step 4');
-      console.log('arrayOfUserBalance=', arrayOfUserBalance);
+      //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
+      arrayOfUserBalance.forEach((item) => {
+        if (item.currencyToFindPrices.includes('usdt')) {
+          item.currencyToFindPrices = 'usdt';
+        }
+      });
+
+      // console.log('step 4');
+      // console.log('arrayOfUserBalance=', arrayOfUserBalance);
       // return res.json('ok4');
 
       let fiatKoefficient = 1;
@@ -547,17 +558,17 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
         .map((item) => {
           const matchingPrice = cryptoPrices.find(
             (price) =>
-              item.currency.toLowerCase() === price.symbol.toLowerCase()
+              item.currencyToFindPrices.toLowerCase() ===
+              price.symbol.toLowerCase()
           );
 
           const amount = item.amount != null ? parseFloat(item.amount) : 0;
           const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
           const fiatK = parseFloat(fiatKoefficient) || 0;
 
+          const epsilon = 1e-20;
 
-          const epsilon = 1e-20
-
-          if (amount > 0 && Math.abs(amount - 2e-18) > epsilon ) {
+          if (amount > 0 && Math.abs(amount - 2e-18) > epsilon) {
             const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
             const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(
               2
@@ -565,6 +576,7 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
 
             return {
               currency: item.currency,
+              currencyForUse: item.currencyToFindPrices,
               amount: amount,
               price_usd: priceUsd,
               priceAllCoinInUsd: priceAllCoinInUsd,
@@ -1051,8 +1063,6 @@ app.get('/api/get_my_payin', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-
-
     if (
       (!payins && !transfers && !exchange) ||
       (payins.length === 0 && transfers.length === 0 && exchange.length === 0)
@@ -1107,7 +1117,6 @@ app.get('/api/get_my_payin', async (req, res) => {
       };
     });
 
-
     const processedExchanges = exchange.map((item) => {
       const date = new Date(item.updatedAt);
       const day = date.getDate();
@@ -1124,13 +1133,11 @@ app.get('/api/get_my_payin', async (req, res) => {
       };
     });
 
-
-
-
-
-    const total = [...processedPayins, ...processedTransfers, ...processedExchanges].sort(
-      (a, b) => b.forSort - a.forSort
-    );
+    const total = [
+      ...processedPayins,
+      ...processedTransfers,
+      ...processedExchanges,
+    ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);
 
@@ -1181,13 +1188,12 @@ app.get('/api/get_my_payout', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-
     const exchange = await RqstExchangeSchemaModel.find({
       status: 'done',
       tlgid: req.query.tlgid,
     })
       .sort({ updatedAt: -1 })
-      .lean();  
+      .lean();
 
     if (
       (!payouts && !transfers && !exchange) ||
@@ -1255,8 +1261,7 @@ app.get('/api/get_my_payout', async (req, res) => {
       };
     });
 
-
-     const processedExchanges = exchange.map((item) => {
+    const processedExchanges = exchange.map((item) => {
       const date = new Date(item.updatedAt);
       const day = date.getDate();
       const month = months[date.getMonth()];
@@ -1272,11 +1277,11 @@ app.get('/api/get_my_payout', async (req, res) => {
       };
     });
 
-
-
-    const total = [...processedPayouts, ...processedTransfers, ...processedExchanges].sort(
-      (a, b) => b.forSort - a.forSort
-    );
+    const total = [
+      ...processedPayouts,
+      ...processedTransfers,
+      ...processedExchanges,
+    ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);
 
@@ -1732,38 +1737,33 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
         }
       );
 
-      
       const userBalance = response.data.result.balances;
-      
-      
+
       const arrayOfUserBalance = Object.entries(userBalance).map(
         ([key, value]) => ({
           currency: key, // кладем ключ внутрь объекта
           ...value, // распаковываем остальные свойства
         })
       );
-      
-      console.log('2 | userBalance',arrayOfUserBalance)
-      
-      arrayOfUserBalance.map((item) => {
 
-        const epsilon = 1e-20
-         
+      console.log('2 | userBalance', arrayOfUserBalance);
+
+      arrayOfUserBalance.map((item) => {
+        const epsilon = 1e-20;
 
         if (item.currency === coin && Math.abs(item.amount - 2e-18) > epsilon) {
           return res.json({
             coin: coin,
             balance: item.amount,
           });
-        }         
-        
+        }
       });
 
       // если не найдено
       return res.json({
-            coin: coin,
-            balance: 0,
-          });
+        coin: coin,
+        balance: 0,
+      });
 
       // return res.json({ arrayOfUserBalanceWithUsdPrice });
     } else {
@@ -1776,8 +1776,6 @@ app.get('/api/get_balance_currentCoin', async (req, res) => {
     });
   }
 });
-
-
 
 //перевод с Юзер счета на Мастер счет для Обмена
 app.post('/api/rqst_fromUser_toMaster', async (req, res) => {
@@ -1880,7 +1878,533 @@ async function createRqstExchange(
   }
 }
 
+///////////////////////////
 
+// KC-API-KEY The API key as a string.
+// KC-API-PASSPHRASE The passphrase you specified when creating the API key.
+
+// KC-API-KEY-VERSION You can check the API key version on the page of API Management.
+// KC-API-SIGN The base 64-encoded signature.
+// KC-API-TIMESTAMP A timestamp for your request (milliseconds).
+// Content-Type All requests and responses are application/json content type.
+
+// проверка KUCOIN
+// app.post('/api/test_kicoin', async (req, res) => {
+//   try {
+
+//     class KcSigner {
+//     constructor(apiKey, apiSecret, apiPassphrase) {
+
+//         this.apiKey = apiKey || "";
+//         this.apiSecret = apiSecret || "";
+//         this.apiPassphrase = apiPassphrase || "";
+
+//         if (apiPassphrase && apiSecret) {
+//             this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+//         }
+
+//         if (!apiKey || !apiSecret || !apiPassphrase) {
+//             console.warn("API token is empty. Access is restricted to public interfaces only.");
+//         }
+//     }
+
+//     sign(plain, key) {
+//         return crypto.createHmac("sha256", key).update(plain).digest("base64");
+//     }
+
+//     headers(plain) {
+
+//         const timestamp = Date.now().toString();
+//         const signature = this.sign(timestamp + plain, this.apiSecret);
+
+//         return {
+//             "KC-API-KEY": this.apiKey,
+//             "KC-API-PASSPHRASE": this.apiPassphrase,
+//             "KC-API-TIMESTAMP": timestamp,
+//             "KC-API-SIGN": signature,
+//             "KC-API-KEY-VERSION": "3",
+//             "Content-Type": "application/json",
+//         };
+//     }
+// }
+
+//     const key = process.env.KUCOIN_KEY || "";
+//     const secret = process.env.KUCOIN_SECRET || "";
+//     const passphrase = process.env.KUCOIN_PASSPHRASE || "";
+
+//     // const axiosInstance = axios.create();
+//     const signer = new KcSigner(key, secret, passphrase);
+
+//     console.log('signer=',signer.headers())
+
+//     // await getTradeFees(signer, axiosInstance);
+//     // await addLimitOrder(signer, axiosInstance);
+
+//     // const token = await getTokenFromNowPayment();
+
+//     // const response = await axios.get(
+//     //   `https://api.nowpayments.io/v1/sub-partner?id=${req.body.adress}`,
+//     //   {
+//     //     headers: {
+//     //       Authorization: `Bearer ${token}`,
+//     //     },
+//     //   }
+//     // );
+
+//     const response = await axios.post(
+//     'https://api.kucoin.com/api/v1/hf/orders/test',
+//     {
+//     "type": "market",
+//     "symbol": "BTC-USDT",
+//     "side": "buy",
+//     "size": "1",
+//     "clientOid": "5c52e11203aa677f33e493fc",
+//     "remark": "order remarks",
+// },
+//     {
+//       headers: signer.headers(),
+//     }
+//   );
+
+//     return res.json(response.data);
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
+
+app.post('/api/test_kicoin', async (req, res) => {
+  try {
+    class KcSigner {
+      constructor(apiKey, apiSecret, apiPassphrase) {
+        this.apiKey = apiKey || '';
+        this.apiSecret = apiSecret || '';
+        this.apiPassphrase = apiPassphrase || '';
+
+        if (apiPassphrase && apiSecret) {
+          this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+        }
+
+        if (!apiKey || !apiSecret || !apiPassphrase) {
+          console.warn('API credentials are missing. Access will likely fail.');
+        }
+      }
+
+      sign(plain, key) {
+        return crypto.createHmac('sha256', key).update(plain).digest('base64');
+      }
+
+      headers(requestPath, method = 'POST', body = '') {
+        const timestamp = Date.now().toString();
+        const bodyString =
+          typeof body === 'object' ? JSON.stringify(body) : body;
+        const prehash =
+          timestamp + method.toUpperCase() + requestPath + bodyString;
+        const signature = this.sign(prehash, this.apiSecret);
+
+        return {
+          'KC-API-KEY': this.apiKey,
+          'KC-API-PASSPHRASE': this.apiPassphrase,
+          'KC-API-TIMESTAMP': timestamp,
+          'KC-API-SIGN': signature,
+          'KC-API-KEY-VERSION': '3',
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
+    // Load API credentials from environment
+    const key = process.env.KUCOIN_KEY || '';
+    const secret = process.env.KUCOIN_SECRET || '';
+    const passphrase = process.env.KUCOIN_PASSPHRASE || '';
+
+    const signer = new KcSigner(key, secret, passphrase);
+
+    // Generate a unique client order ID
+    const clientOid = crypto.randomUUID();
+
+    // const requestPath = '/api/v1/hf/orders/test';
+    const requestPath = '/api/v1/hf/orders';
+    const method = 'POST';
+
+    const orderBody = {
+      type: 'market',
+      symbol: 'TON-USDT',
+      side: 'buy',
+      size: '1',
+      clientOid,
+      remark: 'order remarks',
+    };
+
+    const response = await axios.post(
+      `https://api.kucoin.com${requestPath}`,
+      orderBody,
+      {
+        headers: signer.headers(requestPath, method, orderBody),
+      }
+    );
+
+    // Optional: check KuCoin API response code
+    if (response.data.code !== '200000') {
+      console.error('Ошибка от KuCoin:', response.data);
+      return res.status(400).json({ error: response.data });
+    }
+
+    return res.json(response.data);
+  } catch (err) {
+    console.error('Ошибка сервера:', err.message || err);
+    res.status(500).json({
+      message: 'Ошибка сервера',
+      error: err?.response?.data || err.message,
+    });
+  }
+});
+
+// БИРЖА - START
+
+// получение стоимости валютной пары
+app.get('/api/get_ticker', async (req, res) => {
+  try {
+    const response = await axios.get(
+      `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${req.query.pair}`
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    console.log(err);
+    res.json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+// получение торговых пар для биржи
+app.get('/api/get_stock_pairs', async (req, res) => {
+  try {
+    const pairs = await TradingPairsModel.find().lean();
+
+    if (!pairs.length) {
+      return res.status(404).json({ status: 'no found' });
+    }
+
+    res.json({
+      status: 'success',
+      data: pairs,
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'server error', error: error.message });
+  }
+});
+
+//сохранить новую торговую пару
+app.post('/api/save_new_tradingpair', async (req, res) => {
+  const doc = new TradingPairsModel({
+    coin1short: 'TON',
+    coin1full: 'TON',
+    coin1chain: 'ton',
+    coin2short: 'USDT',
+    coin2full: 'USDTTRC20',
+    coin2chain: 'trx',
+    adress1: 'EQCis7EQg8xEgj7j-SoBDan4cBwqSdl26mX7LYbvwwkHNFoF',
+    adress2: 'TYL8ALwJMS5MsmuSZN7uXsdem13HtTNr5K'
+  });
+
+  await doc.save();
+  return res.json({ status: 'saved' });
+});
+
+//сохранить новый адрес для перевода на биржу
+app.post('/api/save_new_stockAdress', async (req, res) => {
+  const doc = new StockAdressesModel({
+    coinShort: 'TON',
+    coinFull: 'TON',
+    coinChain: 'ton',
+    adress: 'EQCis7EQg8xEgj7j-SoBDan4cBwqSdl26mX7LYbvwwkHNFoF',
+    
+  });
+
+  await doc.save();
+  return res.json({ status: 'saved' });
+});
+
+//новая заявка на биржу - marketorder
+app.post('/api/new_stockorder_market', async (req, res) => {
+  try {
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+    const { ...userData } = user._doc;
+    const nowpaymentid = userData.nowpaymentid;
+    const language = userData.language;
+
+    //вывод с счета клиента на мастер счет
+    const token = await getTokenFromNowPayment();
+
+    let requestData = {};
+
+    if (req.body.type === 'buy') {
+      requestData = {
+        currency: String(req.body.coin2full),
+        amount: Number(req.body.amount),
+        sub_partner_id: String(nowpaymentid),
+      };
+    }
+
+    if (req.body.type === 'sell') {
+      requestData = {
+        currency: String(req.body.coin1full),
+        amount: Number(req.body.amount),
+        sub_partner_id: String(nowpaymentid),
+      };
+    }
+
+    const response = await axios.post(
+      'https://api.nowpayments.io/v1/sub-partner/write-off',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 секунд таймаут
+      }
+    );
+
+    let errorText = '';
+    let statusText = 'error';
+    let id_clientToMaster = null;
+
+    if (response.data.result.status === 'PROCESSING') {
+      id_clientToMaster = response.data.result.id;
+      errorText = 'ok';
+      statusText = 'new';
+    } else {
+      errorText = 'ошибка при отправке с счета клиента на мастер счет';
+    }
+
+
+    //записать инфо в БД
+    const doc = new RqstStockMarketOrderModel({
+      id_clientToMaster: id_clientToMaster,
+      id_MasterToStock: null,
+      id_OrderOnStock: null,
+      status: statusText,
+      tlgid: req.body.tlgid,
+      userNP: nowpaymentid,
+      type: req.body.type,
+      coin1short: req.body.coin1short,
+      coin1full:req.body.coin1full,
+      coin1chain: req.body.coin1chain,
+      coin2short: req.body.coin2short,
+      coin2full: req.body.coin2full,
+      coin2chain: req.body.coin2chain,
+      amount: req.body.amount,
+      nowpaymentComission: null,
+      ourComission: null,
+      stockComission: null,
+      language: language,
+      helptext: req.body.helptext,
+      errorText: errorText,
+      amountSentToStock: null,
+      payout_id: null,
+      batch_withdrawal_id: null,
+      order_id: null,
+      trtCoinFromStockToNP_np_id: null,
+      trtCoinFromStockToNP_stock_id: null,
+      amountAccordingBaseIncrement: null
+    });
+
+    await doc.save();
+
+    console.log('success')
+
+    return res.json({ status: 'saved' });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+//FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FORSTOCK
+// для обработки "прихода денег на биржу"
+app.post('/api/webhook_forstock', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук payout:', payload);
+
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
+
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
+
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
+
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
+
+    // 4. Безопасное сравнение подписей
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+
+    console.log('Подписи совпадают');
+
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+
+      await processWebhookStock(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// функция обработки вывод средств (payout)
+async function processWebhookStock(payload) {
+  console.log('Обрабатываю:', payload);
+
+  const statusLowerLetter = payload.status.toLowerCase();
+
+  const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+    { batch_withdrawal_id: payload.batch_withdrawal_id },
+    { $set: { status: statusLowerLetter } }
+  );
+
+  console.log('Статус=', payload.status.toLowerCase());
+
+  if (payload.status.toLowerCase() === 'finished') {
+    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+      { batch_withdrawal_id: payload.batch_withdrawal_id },
+      { $set: { status: 'CoinReceivedByStock' } }
+    );
+  }
+}
+
+//FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FROMSTOCKTOUSER
+
+// для обработки "прихода денег с биржи на адрес пользователя"
+app.post('/api/webhook_fromStockToUser', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук payout:', payload);
+
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
+
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
+
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
+
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
+
+    // 4. Безопасное сравнение подписей
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+
+    console.log('Подписи совпадают');
+
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+
+      await processWebhookTrtFromStockToUser(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// функция обработки вывод средств (payout)
+async function processWebhookTrtFromStockToUser(payload) {
+  console.log('Обрабатываю:', payload);
+
+  // const statusLowerLetter = payload.status.toLowerCase();
+
+  // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+  //   { trtCoinFromStockToNP_np_id: payload.batch_withdrawal_id },
+  //   { $set: { status: statusLowerLetter } }
+  // );
+
+  console.log('Статус=', payload.payment_status.toLowerCase());
+
+  if (payload.payment_status.toLowerCase() === 'partially_paid') {
+    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+      { trtCoinFromStockToNP_np_id: payload.payment_id },
+      { $set: { status: 'done' } }
+    );
+
+    console.log('отправить юзеру сообщение, что бабки пришли с Stock');
+  }
+}
+
+// БИРЖА - FINISH
 
 app.listen(PORT, (err) => {
   if (err) {

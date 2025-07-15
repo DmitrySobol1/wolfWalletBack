@@ -67,7 +67,7 @@ export async function executeCheckTask() {
     const batch_withdrawal_id = createPayoutResult.id;
     const payout_id = createPayoutResult.withdrawals[0].id;
 
-    console.log('step 3 | withdrawal_id=', batch_withdrawal_id);
+    console.log('step 3 | withdrawal_id=', batch_withdrawal_id); 
 
     const code2fa = await create2FAcode();
     console.log('step 4 | code2fa=', code2fa);

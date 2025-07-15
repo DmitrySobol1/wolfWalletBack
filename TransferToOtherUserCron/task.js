@@ -38,6 +38,9 @@ mongoose
 export async function executeCheckTask2() {
   console.log('Начинаю cron2: tranfer to other user...');
 
+
+  
+
   const records = await RqstTransferToOtherUserModel.find({
     statusAll: 'new',
   }).exec();
