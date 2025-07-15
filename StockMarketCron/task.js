@@ -1,3 +1,4 @@
+//FIXME:
 // для тестов
 // import dotenv from 'dotenv';
 // dotenv.config();
@@ -6,6 +7,12 @@
 //для прода
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+
+// TODO: убрат в проде команду
+// executeCheckTask();
+
+// TODO: убрать файл env из этой папки перед заливкой на сервер
+// TODO: нужно ли убирать из этого файла const app и прочее?
 
 import mongoose from 'mongoose';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
@@ -33,11 +40,7 @@ mongoose
 // app.use(express.json());
 // app.use(cors());
 
-// TODO: убрат в проде команду
-// executeCheckTask();
 
-// TODO: убрать файл env из этой папки перед заливкой на сервер
-// TODO: нужно ли убирать из этого файла const app и прочее?
 
 export async function executeCheckTask() {
   console.log('Начинаю cron4: проверка прошел ли платеж с Клиент на Мастер...');
@@ -223,11 +226,12 @@ export async function executeCheckTask() {
 
     if (item.status == 'orderPlaced') {
 
-      const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin1full );
+      const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin1full,item.coin1chain,item.coin2chain );
 
       const amountToSendToNp = checkOrderExecutionResult.amount
       const coinToSendToNp = checkOrderExecutionResult.coin
       const coinToSendToNpFull = checkOrderExecutionResult.coinFull
+      const chainToSendToNp = checkOrderExecutionResult.chain
 
       console.log('step 12 | from code | amountToSendToNp = ',amountToSendToNp)
       console.log('step 12 | from code | coinToSendToNp = ',coinToSendToNp)
@@ -255,7 +259,7 @@ export async function executeCheckTask() {
 
       
 
-      const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(amountToSendToNp,coinToSendToNp,adresssValue)
+      const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(amountToSendToNp,coinToSendToNp,adresssValue,chainToSendToNp)
       
       await RqstStockMarketOrderModel.findOneAndUpdate(
         { _id: item._id },
@@ -762,7 +766,7 @@ console.log(response.data)
 
 
 //проверить, выполнен ли ORDER на бирже
-async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full ) {
+async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full,coin1chain,coin2chain ) {
    try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -836,14 +840,16 @@ async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full ) {
           const amount = response.data.data.dealSize
           const coin = coin1
           const coinFull = coin1full
-          return ({amount,coin,coinFull})
+          const chain = coin1chain
+          return ({amount,coin,coinFull,chain})
         }
 
         if (response.data.data.side == 'sell'){
           const amount = Number(response.data.data.dealFunds) - Number(response.data.data.fee)
           const coin = coin2
           const coinFull = coin2full
-          return ({amount,coin,coinFull})
+          const chain = coin2chain
+          return ({amount,coin,coinFull,chain})
         }
     
       }
@@ -985,7 +991,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
 
 
 //отправить с биржи монеты в NP
-async function makeWithdrawFromStockToNp(amount,coin,adress) {
+async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -1040,7 +1046,7 @@ async function makeWithdrawFromStockToNp(amount,coin,adress) {
     const method = 'POST';
 
     const currencyValue = coin.toUpperCase()
-    const chainValue = coin.toLowerCase()
+    const chainValue = chain.toLowerCase()
 
 
     const orderBody = {
