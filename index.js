@@ -290,7 +290,6 @@ app.post('/api/get_info_for_payinadress', async (req, res) => {
 
     const token = await getTokenFromNowPayment();
 
-
     if (userData.nowpaymentid === 0) {
       const nowpaymentid = await createUserInNowPayment(token, req.body.tlgid);
 
@@ -307,7 +306,7 @@ app.post('/api/get_info_for_payinadress', async (req, res) => {
     const minAmount = await getMinAmountForDeposit(req.body.coin);
 
     //чтобы исключить колебание мин кол-ва, пока обрабатывается запрос
-    const minAmountPlus5Percent = minAmount + minAmount*0.05
+    const minAmountPlus5Percent = minAmount + minAmount * 0.05;
 
     const payAdress = await createPayAdress(
       token,
@@ -566,6 +565,7 @@ app.get('/api/get_balance_for_pay_out', async (req, res) => {
           const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
           const fiatK = parseFloat(fiatKoefficient) || 0;
 
+          // было 1e-20
           const epsilon = 1e-20;
 
           if (amount > 0 && Math.abs(amount - 2e-18) > epsilon) {
@@ -2108,7 +2108,7 @@ app.post('/api/save_new_tradingpair', async (req, res) => {
     coin2full: 'USDTTRC20',
     coin2chain: 'trx',
     adress1: 'EQCis7EQg8xEgj7j-SoBDan4cBwqSdl26mX7LYbvwwkHNFoF',
-    adress2: 'TYL8ALwJMS5MsmuSZN7uXsdem13HtTNr5K'
+    adress2: 'TYL8ALwJMS5MsmuSZN7uXsdem13HtTNr5K',
   });
 
   await doc.save();
@@ -2122,7 +2122,6 @@ app.post('/api/save_new_stockAdress', async (req, res) => {
     coinFull: 'TON',
     coinChain: 'ton',
     adress: 'EQCis7EQg8xEgj7j-SoBDan4cBwqSdl26mX7LYbvwwkHNFoF',
-    
   });
 
   await doc.save();
@@ -2182,7 +2181,6 @@ app.post('/api/new_stockorder_market', async (req, res) => {
       errorText = 'ошибка при отправке с счета клиента на мастер счет';
     }
 
-
     //записать инфо в БД
     const doc = new RqstStockMarketOrderModel({
       id_clientToMaster: id_clientToMaster,
@@ -2193,7 +2191,7 @@ app.post('/api/new_stockorder_market', async (req, res) => {
       userNP: nowpaymentid,
       type: req.body.type,
       coin1short: req.body.coin1short,
-      coin1full:req.body.coin1full,
+      coin1full: req.body.coin1full,
       coin1chain: req.body.coin1chain,
       coin2short: req.body.coin2short,
       coin2full: req.body.coin2full,
@@ -2211,14 +2209,14 @@ app.post('/api/new_stockorder_market', async (req, res) => {
       order_id: null,
       trtCoinFromStockToNP_np_id: null,
       trtCoinFromStockToNP_stock_id: null,
-      amountAccordingBaseIncrement: null
+      amountAccordingBaseIncrement: null,
     });
 
     await doc.save();
 
-    console.log('success')
+    console.log('success');
 
-    return res.json({ status: 'saved' });
+    return res.json({ statusFn: 'saved' });
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -2403,6 +2401,264 @@ async function processWebhookTrtFromStockToUser(payload) {
     console.log('отправить юзеру сообщение, что бабки пришли с Stock');
   }
 }
+
+//найти мои открытые ордера
+app.get('/api/get_myOpenOrders', async (req, res) => {
+  try {
+    if (!req.query.tlgid) {
+      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+    }
+
+    const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
+    const lang = userData.language;
+
+    const marketOrders = await RqstStockMarketOrderModel.find({
+      status: { $ne: 'done' },
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // const transfers = await RqstTransferToOtherUserModel.find({
+    //   statusAll: 'finished',
+    //   toUserTlgid: req.query.tlgid,
+    // })
+    //   .sort({ updatedAt: -1 })
+    //   .lean();
+
+    if (!marketOrders || marketOrders.length === 0) {
+      return res.status(200).json({ status: 'no' });
+    }
+
+    // const months = [
+    //   'янв',
+    //   'фев',
+    //   'мар',
+    //   'апр',
+    //   'мая',
+    //   'июн',
+    //   'июл',
+    //   'авг',
+    //   'сен',
+    //   'окт',
+    //   'ноя',
+    //   'дек',
+    // ];
+
+    const processedMarketOrders = marketOrders.map((item) => {
+      // const date = new Date(item.updatedAt);
+      // const day = date.getDate();
+      // const month = months[date.getMonth()];
+      // const hours = date.getHours().toString().padStart(2, '0');
+      // const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      const type = {
+        ru: 'маркет ордер',
+        en: 'market order',
+        de: 'marktauftrag',
+      };
+
+      const statusText = {
+        ru: 'в работе',
+        en: 'in progress',
+        de: 'im Gange',
+      };
+
+      let infoText = {};
+
+      if (item.type == 'buy') {
+        infoText = {
+          ru: `покупка ${item.coin1full}`,
+          en: `buying ${item.coin1full}`,
+          de: `kauf ${item.coin1full}`,
+        };
+      }
+
+      if (item.type == 'sell') {
+        infoText = {
+          ru: `продажа ${item.coin1full}`,
+          en: `selling ${item.coin1full}`,
+          de: `verkauf ${item.coin1full}`,
+        };
+      }
+
+      return {
+        status: statusText[lang],
+        type: type[lang],
+        info: infoText[lang],
+      };
+    });
+
+    // const processedTransfers = transfers.map((item) => {
+    //   const date = new Date(item.updatedAt);
+    //   const day = date.getDate();
+    //   const month = months[date.getMonth()];
+    //   const hours = date.getHours().toString().padStart(2, '0');
+    //   const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    //   return {
+    //     coin: item.coin,
+    //     qty: item.qtyToTransfer,
+    //     formattedDate: `${day} ${month} ${hours}:${minutes}`,
+    //     type: 'transfer',
+    //     forSort: item.updatedAt,
+    //   };
+    // });
+
+    const total = [
+      ...processedMarketOrders,
+      // ...processedTransfers,
+    ];
+
+    console.log('total', total);
+
+    return res.status(200).json({
+      statusFn: 'ok',
+      count: total.length,
+      data: total,
+    });
+    // return res.status(200).json({
+    //   status: 'ok',
+    //   count: processedPayins.length,
+    //   data: processedPayins,
+    // });
+  } catch (err) {
+    console.error('Ошибка в /api/get_myOpenOrders:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера',
+    });
+  }
+});
+
+
+
+//найти мои выполненные ордера
+app.get('/api/get_myDoneOrders', async (req, res) => {
+  try {
+    if (!req.query.tlgid) {
+      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+    }
+
+    const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
+    const lang = userData.language;
+
+    const marketOrders = await RqstStockMarketOrderModel.find({
+      status:'done' ,
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // const transfers = await RqstTransferToOtherUserModel.find({
+    //   statusAll: 'finished',
+    //   toUserTlgid: req.query.tlgid,
+    // })
+    //   .sort({ updatedAt: -1 })
+    //   .lean();
+
+    if (!marketOrders || marketOrders.length === 0) {
+      return res.status(200).json({ status: 'no' });
+    }
+
+    const months = [
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'мая',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
+    ];
+
+    const processedMarketOrders = marketOrders.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate();
+      const month = months[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      const type = {
+        ru: 'маркет ордер',
+        en: 'market order',
+        de: 'marktauftrag',
+      };
+
+      
+
+      let infoText = {};
+
+      if (item.type == 'buy') {
+        infoText = {
+          ru: `покупка ${item.coin1full}`,
+          en: `buying ${item.coin1full}`,
+          de: `kauf ${item.coin1full}`,
+        };
+      }
+
+      if (item.type == 'sell') {
+        infoText = {
+          ru: `продажа ${item.coin1full}`,
+          en: `selling ${item.coin1full}`,
+          de: `verkauf ${item.coin1full}`,
+        };
+      }
+
+      return {
+        // status: statusText[lang],
+        type: type[lang],
+        info: infoText[lang],
+        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+      };
+    });
+
+    // const processedTransfers = transfers.map((item) => {
+    //   const date = new Date(item.updatedAt);
+    //   const day = date.getDate();
+    //   const month = months[date.getMonth()];
+    //   const hours = date.getHours().toString().padStart(2, '0');
+    //   const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    //   return {
+    //     coin: item.coin,
+    //     qty: item.qtyToTransfer,
+    //     formattedDate: `${day} ${month} ${hours}:${minutes}`,
+    //     type: 'transfer',
+    //     forSort: item.updatedAt,
+    //   };
+    // });
+
+    const total = [
+      ...processedMarketOrders,
+      // ...processedTransfers,
+    ];
+
+    console.log('total', total);
+
+    return res.status(200).json({
+      statusFn: 'ok',
+      count: total.length,
+      data: total,
+    });
+    // return res.status(200).json({
+    //   status: 'ok',
+    //   count: processedPayins.length,
+    //   data: processedPayins,
+    // });
+  } catch (err) {
+    console.error('Ошибка в /api/get_myOpenOrders:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Внутренняя ошибка сервера',
+    });
+  }
+});
+
 
 // БИРЖА - FINISH
 
