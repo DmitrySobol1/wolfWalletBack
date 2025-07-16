@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-// import dotenv from 'dotenv';
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 //FIXME:
 //для прода
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+// import dotenv from 'dotenv';
+// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-// executeCheckTask();
+executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
@@ -228,7 +228,7 @@ export async function executeCheckTask() {
 
       const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin2full,item.coin1chain,item.coin2chain );
 
-      const amountToSendToNp = checkOrderExecutionResult.amount
+      let amountToSendToNp = checkOrderExecutionResult.amount
       const coinToSendToNp = checkOrderExecutionResult.coin
       const coinToSendToNpFull = checkOrderExecutionResult.coinFull
       const chainToSendToNp = checkOrderExecutionResult.chain
@@ -238,8 +238,24 @@ export async function executeCheckTask() {
       console.log('step 12 | from code | coinToSendToNpFull = ',coinToSendToNpFull)
       console.log('step 12 | from code | chainToSendToNp = ',chainToSendToNp)
 
-     
+      
+      // получить число для округления
+      const getWithdrawalInfoResult = await getWithdrawalInfo(coinToSendToNp, chainToSendToNp);
 
+      if (getWithdrawalInfoResult.statusFn != 'ok' ){
+        //FIXME: выпасть в ошибку
+        // console.log ('Ошибка в getWithdrawalInfo ')
+      }
+      
+      const precision= Number(getWithdrawalInfoResult.precision)
+      amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
+
+      // console.log('amountToSendToNp',amountToSendToNp)
+      // console.log(typeof amountToSendToNp)
+
+      
+
+      // return
 
        //TODO: для быстрых тестов
       // const coinToSendToNp = 'TON'
@@ -1084,6 +1100,96 @@ async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
     
       console.log('fr withdraw fn ', response.data) 
       return (response.data.data.withdrawalId);
+    
+    }
+
+    
+  } catch (err) {
+    console.error('Ошибка сервера:', err.message, err?.response?.data || err);
+    res.status(500).json({
+      message: 'Ошибка сервера',
+      error: err?.response?.data || err.message,
+    });
+  }
+}
+
+
+
+
+
+// получить число для округления
+async function getWithdrawalInfo(coin,chain) {
+  try {
+    class KcSigner {
+      constructor(apiKey, apiSecret, apiPassphrase) {
+        this.apiKey = apiKey || '';
+        this.apiSecret = apiSecret || '';
+        this.apiPassphrase = apiPassphrase || '';
+
+        if (apiPassphrase && apiSecret) {
+          this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+        }
+
+        if (!apiKey || !apiSecret || !apiPassphrase) {
+          console.warn('API credentials are missing. Access will likely fail.');
+        }
+      }
+
+      sign(plain, key) {
+        return crypto.createHmac('sha256', key).update(plain).digest('base64');
+      }
+
+      headers(requestPath, method = 'POST', body = '') {
+        const timestamp = Date.now().toString();
+        const bodyString =
+          typeof body === 'object' ? JSON.stringify(body) : body;
+        const prehash =
+          timestamp + method.toUpperCase() + requestPath + bodyString;
+        const signature = this.sign(prehash, this.apiSecret);
+
+        return {
+          'KC-API-KEY': this.apiKey,
+          'KC-API-PASSPHRASE': this.apiPassphrase,
+          'KC-API-TIMESTAMP': timestamp,
+          'KC-API-SIGN': signature,
+          'KC-API-KEY-VERSION': '3',
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
+    // Load API credentials from environment
+    const key = process.env.KUCOIN_KEY || '';
+    const secret = process.env.KUCOIN_SECRET || '';
+    const passphrase = process.env.KUCOIN_PASSPHRASE || '';
+
+    const signer = new KcSigner(key, secret, passphrase);
+
+    // Generate a unique client order ID
+    const clientOid = crypto.randomUUID();
+
+    const currencyValue = coin.toUpperCase()
+    const chainValue = chain.toLowerCase()
+    
+    //get adresses
+    const requestPath = `/api/v1/withdrawals/quotas?currency=${currencyValue}&chain=${chainValue}`;
+    const method = 'GET';
+
+
+
+    const response = await axios.get(`https://api.kucoin.com${requestPath}`, 
+      {
+      headers: signer.headers(requestPath, method),
+    });
+
+    // Optional: check KuCoin API response code
+    if (response.data.code !== '200000') {
+      console.error('Ошибка от KuCoin:', response.data);
+      return res.status(400).json({ error: response.data });
+    } else {
+    
+      console.log('fr withdraw fn ', response.data) 
+      return ({precision: response.data.data.precision, statusFn: 'ok' });
     
     }
 
