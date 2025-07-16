@@ -247,14 +247,15 @@ export async function executeCheckTask() {
         // console.log ('Ошибка в getWithdrawalInfo ')
       }
 
-
+      const precision= Number(getWithdrawalInfoResult.precision)
+      
       if (!isNaN(amountToSendToNp)) {
         amountToSendToNp = Number(parseFloat(amountToSendToNp).toFixed(precision));
       } else {
         console.error('amountToSendToNp is not a number:', amountToSendToNp);
       }
       
-      // const precision= Number(getWithdrawalInfoResult.precision)
+      
       // amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
 
       // console.log('amountToSendToNp',amountToSendToNp)
