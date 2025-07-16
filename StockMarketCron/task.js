@@ -316,13 +316,13 @@ export async function executeCheckTask() {
         const payStatusFunction = await getPaymentStatus(item.trtCoinFromStockToNP_np_id);
 
         if (payStatusFunction.result == 'ok'){
-                  if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid') {
+          console.log('step 17 | бабки пришли')
+          console.log('payStatusFunction',payStatusFunction)
+                  
+          if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid') {
                
                     console.log('отправить юзеру сообщение')
                     
-                    //отправить сообщение юзеру! 
-                    
-                      
                       // const { title, text } = TEXTS[type]?.[language];
                       // const fullText = text + textQtyCoins;
 
@@ -347,6 +347,16 @@ export async function executeCheckTask() {
 
                           if (response.data?.ok) {
                             console.log('✅ Сообщение успешно отправлено:', response.data.result);
+
+                            await RqstStockMarketOrderModel.findOneAndUpdate(
+                            { _id: item._id },
+                            { $set: { 
+                              status: 'done'
+                            } },
+                            { new: true }
+                          )
+
+
                           } else {
                             console.error('❌ Telegram вернул ошибку:', response.data);
                           }
@@ -355,13 +365,7 @@ export async function executeCheckTask() {
                         }
 
 
-                        await RqstStockMarketOrderModel.findOneAndUpdate(
-                        { _id: item._id },
-                        { $set: { 
-                          status: 'done'
-                        } },
-                        { new: true }
-                      )
+                        
                 
                
 
