@@ -248,7 +248,7 @@ export async function executeCheckTask() {
       }
 
       const precision= Number(getWithdrawalInfoResult.precision)
-      
+
       if (!isNaN(amountToSendToNp)) {
         amountToSendToNp = Number(parseFloat(amountToSendToNp).toFixed(precision));
       } else {
@@ -326,27 +326,33 @@ export async function executeCheckTask() {
                       // const { title, text } = TEXTS[type]?.[language];
                       // const fullText = text + textQtyCoins;
 
-                      const title = 'От биржи'
-                      const fullText = 'операция на бирже прошла успешно'
-                      const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
-                    
-                      // const sendingText = TEXTS[language].text;
-                      const params = `?chat_id=${item.tlgid}&text=${title}%0A${fullText}`;
-                      const url = baseurl + params;
-                    
-                      https
-                        .get(url, (response) => {
-                          let data = '';
-                    
-                          // Когда запрос завершён
-                          response.on('end', () => {
-                            console.log(JSON.parse(data)); // Выводим результат
+                      const title = 'От биржи';
+                      const fullText = 'операция на бирже прошла успешно';
+
+                      const chatId = item.tlgid;
+                      const botToken = process.env.BOT_TOKEN;
+
+                        if (!botToken) {
+                          console.error('Ошибка: переменная окружения BOT_TOKEN не задана');
+                          return;
+                        }
+
+                        const message = `${title}\n${fullText}`;
+
+                        try {
+                          const response = await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                            chat_id: chatId,
+                            text: message,
                           });
-                        })
-                        .on('error', (err) => {
-                          console.error('Ошибка:', err);
-                        });
-                    
+
+                          if (response.data?.ok) {
+                            console.log('✅ Сообщение успешно отправлено:', response.data.result);
+                          } else {
+                            console.error('❌ Telegram вернул ошибку:', response.data);
+                          }
+                        } catch (error) {
+                          console.error('❌ Ошибка при отправке сообщения:', error?.response?.data || error.message);
+                        }
 
 
                         await RqstStockMarketOrderModel.findOneAndUpdate(
