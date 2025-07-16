@@ -280,7 +280,11 @@ export async function executeCheckTask() {
       console.log('step 13 | pay adress=',adresssValue)
       console.log('step 14 | внутренний id NP что бы отследить перевод с биржи',idValue)
 
-      
+      const tranferInStockresult = await transferInStock(coinToSendToNp,amountToSendToNp)
+      if (tranferInStockresult.statusFn != 'ok' ){
+        //FIXME: выпасть в ошибку
+        // console.log ('Ошибка в getWithdrawalInfo ')
+      }
 
       const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(amountToSendToNp,coinToSendToNp,adresssValue,chainToSendToNp)
       
@@ -1191,6 +1195,105 @@ async function getWithdrawalInfo(coin,chain) {
       console.log('fr withdraw fn ', response.data) 
       return ({precision: response.data.data.precision, statusFn: 'ok' });
     
+    }
+
+    
+  } catch (err) {
+    console.error('Ошибка сервера:', err.message, err?.response?.data || err);
+    res.status(500).json({
+      message: 'Ошибка сервера',
+      error: err?.response?.data || err.message,
+    });
+  }
+}
+
+
+
+
+//трансфер с Trade на Main аккаунт внутри биржи
+async function transferInStock(coin,amount){ 
+
+  try {
+    class KcSigner {
+      constructor(apiKey, apiSecret, apiPassphrase) {
+        this.apiKey = apiKey || '';
+        this.apiSecret = apiSecret || '';
+        this.apiPassphrase = apiPassphrase || '';
+
+        if (apiPassphrase && apiSecret) {
+          this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+        }
+
+        if (!apiKey || !apiSecret || !apiPassphrase) {
+          console.warn('API credentials are missing. Access will likely fail.');
+        }
+      }
+
+      sign(plain, key) {
+        return crypto.createHmac('sha256', key).update(plain).digest('base64');
+      }
+
+      headers(requestPath, method = 'POST', body = '') {
+        const timestamp = Date.now().toString();
+        const bodyString =
+          typeof body === 'object' ? JSON.stringify(body) : body;
+        const prehash =
+          timestamp + method.toUpperCase() + requestPath + bodyString;
+        const signature = this.sign(prehash, this.apiSecret);
+
+        return {
+          'KC-API-KEY': this.apiKey,
+          'KC-API-PASSPHRASE': this.apiPassphrase,
+          'KC-API-TIMESTAMP': timestamp,
+          'KC-API-SIGN': signature,
+          'KC-API-KEY-VERSION': '3',
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
+    // Load API credentials from environment
+    const key = process.env.KUCOIN_KEY || '';
+    const secret = process.env.KUCOIN_SECRET || '';
+    const passphrase = process.env.KUCOIN_PASSPHRASE || '';
+
+    const signer = new KcSigner(key, secret, passphrase);
+
+    // Generate a unique client order ID
+    const clientOid = crypto.randomUUID();
+
+    //get adresses
+    const requestPath = '/api/v3/accounts/universal-transfer';
+    const method = 'POST';
+
+
+    const orderBody = {
+       clientOid: clientOid,
+        type: "INTERNAL",
+        currency: coin,
+        amount: amount,
+        fromAccountType: "TRADE",
+        toAccountType: "MAIN"
+      };
+
+
+      console.log('orderBody=',orderBody)
+
+
+    const response = await axios.post(`https://api.kucoin.com${requestPath}`, 
+      orderBody,
+      {
+      headers: signer.headers(requestPath, method,orderBody),
+    });
+
+    // Optional: check KuCoin API response code
+    if (response.data.code !== '200000') {
+      console.error('Ошибка от KuCoin:', response.data);
+      return res.status(400).json({ error: response.data });
+    } else {
+    
+      console.log('средства отправлены с Trade на Main ') 
+      return ({statusFn: 'ok'});
     }
 
     
