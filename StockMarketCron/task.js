@@ -246,9 +246,16 @@ export async function executeCheckTask() {
         //FIXME: выпасть в ошибку
         // console.log ('Ошибка в getWithdrawalInfo ')
       }
+
+
+      if (!isNaN(amountToSendToNp)) {
+        amountToSendToNp = Number(parseFloat(amountToSendToNp).toFixed(precision));
+      } else {
+        console.error('amountToSendToNp is not a number:', amountToSendToNp);
+      }
       
-      const precision= Number(getWithdrawalInfoResult.precision)
-      amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
+      // const precision= Number(getWithdrawalInfoResult.precision)
+      // amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
 
       // console.log('amountToSendToNp',amountToSendToNp)
       // console.log(typeof amountToSendToNp)
