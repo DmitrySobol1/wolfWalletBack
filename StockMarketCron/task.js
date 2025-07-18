@@ -337,7 +337,7 @@ export async function executeCheckTask() {
       if (payStatusFunction.result == 'ok') {
         console.log('payStatusFunction', payStatusFunction);
 
-        if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid') {
+        if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid' || payStatusFunction.payStatus.toLowerCase() == 'finished' ) {
           console.log('step 17 | бабки пришли');
           console.log('payStatusFunction', payStatusFunction);
 
