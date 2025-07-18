@@ -40,15 +40,13 @@ mongoose
 // app.use(express.json());
 // app.use(cors());
 
-
-
 export async function executeCheckTask() {
   console.log('Начинаю cron4: проверка прошел ли платеж с Клиент на Мастер...');
 
-
-
   const recordsNew = await RqstStockMarketOrderModel.find({
-    status: { $in: ['new', 'CoinReceivedByStock', 'orderPlaced','stockSentCoinToNp' ]},
+    status: {
+      $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockSentCoinToNp'],
+    },
   }).exec();
 
   console.log('step 1 | records=', recordsNew);
@@ -69,7 +67,7 @@ export async function executeCheckTask() {
       if (payStatus[0].status.toLowerCase() == 'finished') {
         let sendingCoin = '';
         let sendingChain = '';
-        let sendingCoinFull = ''
+        let sendingCoinFull = '';
 
         //монета для перевода
         if (item.type === 'buy') {
@@ -92,297 +90,315 @@ export async function executeCheckTask() {
 
         //TODO: АКТУАЛЬНО! Получаю адрес из своей БД
         const addressFinding = await StockAdressesModel.findOne({
-              coinShort: sendingCoin,
-              coinChain: sendingChain,
-            });
+          coinShort: sendingCoin,
+          coinChain: sendingChain,
+        });
 
-        
         // const { ...userData } = user._doc;
         const depositAdres = addressFinding?.adress;
-        
-
 
         console.log('step 3 | адрес для перевода=', depositAdres);
 
-
         // валидировать адрес
-        const validateAdressResponse = await validateAdressFunc(depositAdres,sendingCoinFull);
-  
+        const validateAdressResponse = await validateAdressFunc(
+          depositAdres,
+          sendingCoinFull
+        );
+
         if (validateAdressResponse != 'OK') {
           console.log('step4 | адрес не валидный');
-          //FIXME: добавить выход из кода 
+          //FIXME: добавить выход из кода
         }
 
         console.log('step4 | адрес валидный');
 
-
         //получить network fees
-        const networkFeesResponse = await getNetworkFees(sendingCoinFull,item.amount);
-        
-         if (networkFeesResponse == false) {
+        const networkFeesResponse = await getNetworkFees(
+          sendingCoinFull,
+          item.amount
+        );
+
+        if (networkFeesResponse == false) {
           console.log('step5 | не получили инфо про комиссию');
           //FIXME: добавить выход из кода
         }
 
-        console.log('step5 | network fees=',networkFeesResponse);
+        console.log('step5 | network fees=', networkFeesResponse);
 
-        const amountSentToStockValue = Number(item.amount) - Number(networkFeesResponse)
+        const amountSentToStockValue =
+          Number(item.amount) - Number(networkFeesResponse);
 
-
-         await RqstStockMarketOrderModel.findOneAndUpdate(
+        await RqstStockMarketOrderModel.findOneAndUpdate(
           { _id: item._id },
-          { $set: { 'amountSentToStock': amountSentToStockValue } },
+          { $set: { amountSentToStock: amountSentToStockValue } },
           { new: true }
         );
 
-
-        console.log('step6 | сумма для отправки на биржу (за минусом net fees)',amountSentToStockValue);
-
+        console.log(
+          'step6 | сумма для отправки на биржу (за минусом net fees)',
+          amountSentToStockValue
+        );
 
         //создать запрос на вывод
 
         const token = await getBearerToken();
 
         const requestData = {
-      ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
-      withdrawals: [
-        {
-          address: depositAdres,
-          currency: sendingCoinFull,
-          amount: item.amount,
-          //FIXME: сделать еще один хук
           ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
-        },
-      ],
-    };
+          withdrawals: [
+            {
+              address: depositAdres,
+              currency: sendingCoinFull,
+              amount: item.amount,
+              //FIXME: сделать еще один хук
+              ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
+            },
+          ],
+        };
 
-    const createPayoutResult = await createpayout(requestData, token);
+        const createPayoutResult = await createpayout(requestData, token);
 
-    const batch_withdrawal_id = createPayoutResult.id;
-    const payout_id = createPayoutResult.withdrawals[0].id;
-    console.log('step 7 | withdrawal_id=', batch_withdrawal_id); 
+        const batch_withdrawal_id = createPayoutResult.id;
+        const payout_id = createPayoutResult.withdrawals[0].id;
+        console.log('step 7 | withdrawal_id=', batch_withdrawal_id);
 
+        const code2fa = await create2FAcode();
+        console.log('step 8 | code2fa=', code2fa);
 
-     const code2fa = await create2FAcode();
-     console.log('step 8 | code2fa=', code2fa);
+        const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
+        console.log('step 9 | verify=', verify);
 
+        if (verify === 'OK') {
+          await RqstStockMarketOrderModel.findOneAndUpdate(
+            { _id: item._id },
+            {
+              $set: {
+                status: 'coinSentToStock',
+                payout_id: payout_id,
+                batch_withdrawal_id: batch_withdrawal_id,
+              },
+            },
+            { new: true }
+          );
+        }
 
-      const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
-      console.log('step 9 | verify=', verify);
-
-
-
-      if (verify === 'OK') {
-
-             await RqstStockMarketOrderModel.findOneAndUpdate(
-                   { _id: item._id },
-                     { $set: { 'status': 'coinSentToStock',
-                    'payout_id': payout_id,
-                    'batch_withdrawal_id':batch_withdrawal_id
-
-           } },
-          { new: true }
-        );
-      }
-
-      console.log('step 10 | монеты отправлены на биржу');
-      
-      
+        console.log('step 10 | монеты отправлены на биржу');
       }
     }
 
-
-
     if (item.status == 'CoinReceivedByStock') {
-      
-
-      console.log('запуск статуса CoinReceivedByStock ')
+      console.log('запуск статуса CoinReceivedByStock ');
 
       const placeOrderFunction = await placeOrder(
         item.coin1short,
         item.coin2short,
         item.type,
-        item.amountSentToStock,
+        item.amountSentToStock
       );
 
       //FIXME: добавить, если пришла ошибка
 
-      if (placeOrderFunction.status ==='ok'){
-
-
-      await RqstStockMarketOrderModel.findOneAndUpdate(
+      if (placeOrderFunction.status === 'ok') {
+        await RqstStockMarketOrderModel.findOneAndUpdate(
           { _id: item._id },
-          { $set: { order_id: placeOrderFunction.orderId,
-            status: 'orderPlaced',
-            amountAccordingBaseIncrement: placeOrderFunction.amountWithStep
-           } },
+          {
+            $set: {
+              order_id: placeOrderFunction.orderId,
+              status: 'orderPlaced',
+              amountAccordingBaseIncrement: placeOrderFunction.amountWithStep,
+            },
+          },
           { new: true }
-      )
+        );
 
-      console.log('step 11 | from code order_id=',placeOrderFunction)
-    }
-
+        console.log('step 11 | from code order_id=', placeOrderFunction);
+      }
     }
 
     if (item.status == 'orderPlaced') {
+      const checkOrderExecutionResult = await checkOrderExecution(
+        item.order_id,
+        item.coin1short,
+        item.coin2short,
+        item.coin1full,
+        item.coin2full,
+        item.coin1chain,
+        item.coin2chain
+      );
 
-      const checkOrderExecutionResult = await checkOrderExecution(item.order_id,item.coin1short,item.coin2short,item.coin1full, item.coin2full,item.coin1chain,item.coin2chain );
+      let amountToSendToNp = checkOrderExecutionResult.amount;
+      const coinToSendToNp = checkOrderExecutionResult.coin;
+      const coinToSendToNpFull = checkOrderExecutionResult.coinFull;
+      const chainToSendToNp = checkOrderExecutionResult.chain;
 
-      let amountToSendToNp = checkOrderExecutionResult.amount
-      const coinToSendToNp = checkOrderExecutionResult.coin
-      const coinToSendToNpFull = checkOrderExecutionResult.coinFull
-      const chainToSendToNp = checkOrderExecutionResult.chain
+      console.log(
+        'step 12 | from code | amountToSendToNp = ',
+        amountToSendToNp
+      );
+      console.log('step 12 | from code | coinToSendToNp = ', coinToSendToNp);
+      console.log(
+        'step 12 | from code | coinToSendToNpFull = ',
+        coinToSendToNpFull
+      );
+      console.log('step 12 | from code | chainToSendToNp = ', chainToSendToNp);
 
-      console.log('step 12 | from code | amountToSendToNp = ',amountToSendToNp)
-      console.log('step 12 | from code | coinToSendToNp = ',coinToSendToNp)
-      console.log('step 12 | from code | coinToSendToNpFull = ',coinToSendToNpFull)
-      console.log('step 12 | from code | chainToSendToNp = ',chainToSendToNp)
-
-      
       // получить число для округления
-      const getWithdrawalInfoResult = await getWithdrawalInfo(coinToSendToNp, chainToSendToNp);
+      const getWithdrawalInfoResult = await getWithdrawalInfo(
+        coinToSendToNp,
+        chainToSendToNp
+      );
 
-      if (getWithdrawalInfoResult.statusFn != 'ok' ){
+      if (getWithdrawalInfoResult.statusFn != 'ok') {
         //FIXME: выпасть в ошибку
         // console.log ('Ошибка в getWithdrawalInfo ')
       }
 
-      const precision= Number(getWithdrawalInfoResult.precision)
+      const precision = Number(getWithdrawalInfoResult.precision);
 
       if (!isNaN(amountToSendToNp)) {
-        amountToSendToNp = Number(parseFloat(amountToSendToNp).toFixed(precision));
+        amountToSendToNp = Number(
+          parseFloat(amountToSendToNp).toFixed(precision)
+        );
       } else {
         console.error('amountToSendToNp is not a number:', amountToSendToNp);
       }
-      
-      
+
       // amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
 
       // console.log('amountToSendToNp',amountToSendToNp)
       // console.log(typeof amountToSendToNp)
 
-      
-
       // return
 
-       //TODO: для быстрых тестов
+      //TODO: для быстрых тестов
       // const coinToSendToNp = 'TON'
       // amountToSendToNp = '0.4'
-    
 
-      const getNpAdressResult = await getNpAdress(item.userNP,coinToSendToNpFull,amountToSendToNp )
-      const adresssValue = getNpAdressResult.adress
-      const idValue = getNpAdressResult.uid
-
-  
-    
+      const getNpAdressResult = await getNpAdress(
+        item.userNP,
+        coinToSendToNpFull,
+        amountToSendToNp
+      );
+      const adresssValue = getNpAdressResult.adress;
+      const idValue = getNpAdressResult.uid;
 
       await RqstStockMarketOrderModel.findOneAndUpdate(
         { _id: item._id },
-        { $set: { trtCoinFromStockToNP_np_id: idValue
-        } },
+        { $set: { trtCoinFromStockToNP_np_id: idValue } },
         { new: true }
-      )
+      );
 
+      console.log('step 13 | pay adress=', adresssValue);
+      console.log(
+        'step 14 | внутренний id NP что бы отследить перевод с биржи',
+        idValue
+      );
 
-      console.log('step 13 | pay adress=',adresssValue)
-      console.log('step 14 | внутренний id NP что бы отследить перевод с биржи',idValue)
-
-      const tranferInStockresult = await transferInStock(coinToSendToNp,amountToSendToNp)
-      if (tranferInStockresult.statusFn != 'ok' ){
+      const tranferInStockresult = await transferInStock(
+        coinToSendToNp,
+        amountToSendToNp
+      );
+      if (tranferInStockresult.statusFn != 'ok') {
         //FIXME: выпасть в ошибку
         // console.log ('Ошибка в getWithdrawalInfo ')
       }
 
-      const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(amountToSendToNp,coinToSendToNp,adresssValue,chainToSendToNp)
-      
+      const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(
+        amountToSendToNp,
+        coinToSendToNp,
+        adresssValue,
+        chainToSendToNp
+      );
+
       await RqstStockMarketOrderModel.findOneAndUpdate(
         { _id: item._id },
-        { $set: { trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
-          status: 'stockSentCoinToNp'
-        } },
+        {
+          $set: {
+            trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
+            status: 'stockSentCoinToNp',
+          },
+        },
         { new: true }
-      )
-      
-      console.log('step 15 | перевод с биржи на NP отправлен, id=',makeWithdrawFromStockToNpResult)
+      );
 
+      console.log(
+        'step 15 | перевод с биржи на NP отправлен, id=',
+        makeWithdrawFromStockToNpResult
+      );
     }
-
 
     if (item.status == 'stockSentCoinToNp') {
+      console.log('step 16 | старт проверки, пришли ли бабки юзеру с биржи');
 
-      console.log('step 16 | старт проверки, пришли ли бабки юзеру с биржи')
+      const payStatusFunction = await getPaymentStatus(
+        item.trtCoinFromStockToNP_np_id
+      );
 
-        const payStatusFunction = await getPaymentStatus(item.trtCoinFromStockToNP_np_id);
+      if (payStatusFunction.result == 'ok') {
+        console.log('payStatusFunction', payStatusFunction);
 
-        if (payStatusFunction.result == 'ok'){
-          console.log('step 17 | бабки пришли')
-          console.log('payStatusFunction',payStatusFunction)
-                  
-          if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid') {
-               
-                    console.log('отправить юзеру сообщение')
-                    
-                      // const { title, text } = TEXTS[type]?.[language];
-                      // const fullText = text + textQtyCoins;
+        if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid') {
+          console.log('step 17 | бабки пришли');
+          console.log('payStatusFunction', payStatusFunction);
 
-                      const title = 'От биржи';
-                      const fullText = 'операция на бирже прошла успешно';
+          console.log('отправить юзеру сообщение');
 
-                      const chatId = item.tlgid;
-                      const botToken = process.env.BOT_TOKEN;
+          // const { title, text } = TEXTS[type]?.[language];
+          // const fullText = text + textQtyCoins;
 
-                        if (!botToken) {
-                          console.error('Ошибка: переменная окружения BOT_TOKEN не задана');
-                          return;
-                        }
+          const title = 'От биржи';
+          const fullText = 'операция на бирже прошла успешно';
 
-                        const message = `${title}\n${fullText}`;
+          const chatId = item.tlgid;
+          const botToken = process.env.BOT_TOKEN;
 
-                        try {
-                          const response = await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                            chat_id: chatId,
-                            text: message,
-                          });
+          if (!botToken) {
+            console.error('Ошибка: переменная окружения BOT_TOKEN не задана');
+            return;
+          }
 
-                          if (response.data?.ok) {
-                            console.log('✅ Сообщение успешно отправлено:', response.data.result);
+          const message = `${title}\n${fullText}`;
 
-                            await RqstStockMarketOrderModel.findOneAndUpdate(
-                            { _id: item._id },
-                            { $set: { 
-                              status: 'done'
-                            } },
-                            { new: true }
-                          )
+          try {
+            const response = await axios.post(
+              `https://api.telegram.org/bot${botToken}/sendMessage`,
+              {
+                chat_id: chatId,
+                text: message,
+              }
+            );
 
+            if (response.data?.ok) {
+              console.log(
+                '✅ Сообщение успешно отправлено:',
+                response.data.result
+              );
 
-                          } else {
-                            console.error('❌ Telegram вернул ошибку:', response.data);
-                          }
-                        } catch (error) {
-                          console.error('❌ Ошибка при отправке сообщения:', error?.response?.data || error.message);
-                        }
-
-
-                        
-                
-               
-
-       }
-
+              await RqstStockMarketOrderModel.findOneAndUpdate(
+                { _id: item._id },
+                {
+                  $set: {
+                    status: 'done',
+                  },
+                },
+                { new: true }
+              );
+            } else {
+              console.error('❌ Telegram вернул ошибку:', response.data);
+            }
+          } catch (error) {
+            console.error(
+              '❌ Ошибка при отправке сообщения:',
+              error?.response?.data || error.message
+            );
+          }
         }
-
-      
-
+      } 
     }
-
 
     return { success: true };
   }
 }
-
-
 
 //получить инфо о платеже
 async function getTransfer(token, transferID) {
@@ -398,8 +414,6 @@ async function getTransfer(token, transferID) {
   return response.data.result;
 }
 
-
-
 //получить инфо о пополнении баланса Юзера
 async function getPaymentStatus(paymentID) {
   const response = await axios.get(
@@ -412,11 +426,8 @@ async function getPaymentStatus(paymentID) {
     }
   );
 
-  
-  return ({result: 'ok', payStatus:  response.data.payment_status});
+  return { result: 'ok', payStatus: response.data.payment_status };
 }
-
-
 
 async function depositFromMasterToClient(coinTo, amountTo, userNP, token) {
   const response = await axios.post(
@@ -441,9 +452,8 @@ async function depositFromMasterToClient(coinTo, amountTo, userNP, token) {
   }
 }
 
-
 // Get Deposit Address - получить адрес для перевода
-async function getDepositAdres(sendingCoin,chain) {
+async function getDepositAdres(sendingCoin, chain) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -552,8 +562,6 @@ async function getDepositAdres(sendingCoin,chain) {
   }
 }
 
-
-
 async function validateAdressFunc(adress, coin) {
   try {
     const requestData = {
@@ -577,7 +585,7 @@ async function validateAdressFunc(adress, coin) {
     if (response.data == 'OK') {
       console.log(response.data);
       return response.data;
-    } 
+    }
   } catch (error) {
     console.error('Error in validateAdress', {
       error: error.response?.data || error.message,
@@ -587,12 +595,9 @@ async function validateAdressFunc(adress, coin) {
   }
 }
 
-
-
-
 //получить network fee за вывод монеты
-async function getNetworkFees(coin,amount){
-try {
+async function getNetworkFees(coin, amount) {
+  try {
     const response = await axios.get(
       `https://api.nowpayments.io/v1/payout/fee?currency=${coin}&amount=${amount}`,
       {
@@ -608,14 +613,13 @@ try {
       networkFees = response.data.fee;
     }
 
-    return (networkFees);
+    return networkFees;
   } catch (err) {
     console.log(err);
     res.status(500).json({
       message: 'ошибка сервера',
     });
   }
-
 }
 
 //получить bearer token
@@ -635,7 +639,6 @@ async function getBearerToken() {
   return response.data.token;
 }
 
-
 //создать payout
 async function createpayout(requestData, token) {
   const response = await axios.post(
@@ -653,7 +656,6 @@ async function createpayout(requestData, token) {
   return response.data;
 }
 
-
 //создать 2FA код
 async function create2FAcode() {
   try {
@@ -670,8 +672,6 @@ async function create2FAcode() {
     return res.status(500).json({ message: 'Ошибка при создании кода.' });
   }
 }
-
-
 
 //верифицировать payout
 async function verifyPayout(withdrawal_id, code2fa, token) {
@@ -691,13 +691,8 @@ async function verifyPayout(withdrawal_id, code2fa, token) {
   return response.data;
 }
 
-
-
-
-
-
 //разместить order на бирже
-async function placeOrder(coin1,coin2,type,amount) {
+async function placeOrder(coin1, coin2, type, amount) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -747,57 +742,65 @@ async function placeOrder(coin1,coin2,type,amount) {
     // Generate a unique client order ID
     const clientOid = crypto.randomUUID();
 
-
     //получить цену с учетом минимального шага сети
     const requestPathForSize = '/api/v2/symbols';
     const methodForSize = 'GET';
-    console.log('url=',`https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`)
-    const getSize = await axios.get(`https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`, 
-    {
-      headers: signer.headers(requestPathForSize, methodForSize),
-    });
+    console.log(
+      'url=',
+      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`
+    );
+    const getSize = await axios.get(
+      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`,
+      {
+        headers: signer.headers(requestPathForSize, methodForSize),
+      }
+    );
 
-    console.log('getSize',getSize.data)
+    console.log('getSize', getSize.data);
 
     const baseIncrement = parseFloat(getSize.data.data.baseIncrement);
     console.log('Минимальный шаг объёма:', baseIncrement);
-  
-    const amountWithStep = (Math.floor(amount / baseIncrement) * baseIncrement).toFixed(6);
+
+    const amountWithStep = (
+      Math.floor(amount / baseIncrement) * baseIncrement
+    ).toFixed(6);
     console.log('новая цена:', amountWithStep);
-    console.log('amount=',amount)
+    console.log('amount=', amount);
 
-
-    
     const requestPath = '/api/v1/hf/orders';
     const method = 'POST';
 
     const orderBody = {
-       type: 'market',
-       symbol: `${coin1}-${coin2}`,
-       side: type,
-       size: amountWithStep,
-       clientOid: clientOid,
-       remark: 'order remarks'
-      };
+      type: 'market',
+      symbol: `${coin1}-${coin2}`,
+      side: type,
+      size: amountWithStep,
+      clientOid: clientOid,
+      remark: 'order remarks',
+    };
 
-      console.log('orderBody=',orderBody)
+    console.log('orderBody=', orderBody);
 
-    const response = await axios.post(`https://api.kucoin.com${requestPath}`, 
+    const response = await axios.post(
+      `https://api.kucoin.com${requestPath}`,
       orderBody,
       {
-      headers: signer.headers(requestPath, method,orderBody),
-    });
+        headers: signer.headers(requestPath, method, orderBody),
+      }
+    );
 
     // Optional: check KuCoin API response code
     if (response.data.code !== '200000') {
       console.error('Ошибка от KuCoin:', response.data);
       return res.status(400).json({ error: response.data });
     } else {
-console.log(response.data) 
-    return({orderId: response.data.data.orderId, status:'ok', amountWithStep:amountWithStep }) 
+      console.log(response.data);
+      return {
+        orderId: response.data.data.orderId,
+        status: 'ok',
+        amountWithStep: amountWithStep,
+      };
     }
-
-    
   } catch (err) {
     console.error('Ошибка сервера:', err.message || err);
     res.status(500).json({
@@ -807,12 +810,17 @@ console.log(response.data)
   }
 }
 
-
-
-
 //проверить, выполнен ли ORDER на бирже
-async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full,coin1chain,coin2chain ) {
-   try {
+async function checkOrderExecution(
+  order_id,
+  coin1,
+  coin2,
+  coin1full,
+  coin2full,
+  coin1chain,
+  coin2chain
+) {
+  try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
         this.apiKey = apiKey || '';
@@ -876,34 +884,32 @@ async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full,coin
       console.error('Ошибка от KuCoin:', response.data);
       return res.status(400).json({ error: response.data });
     } else {
+      if (
+        response.data.data.inOrderBook == false &&
+        response.data.data.active == false
+      ) {
+        console.log('from fn');
+        console.log(response.data);
 
-      if (response.data.data.inOrderBook == false && response.data.data.active == false){
-        console.log('from fn')
-        console.log(response.data)
-
-        if (response.data.data.side == 'buy'){
-          const amount = response.data.data.dealSize
-          const coin = coin1
-          const coinFull = coin1full
-          const chain = coin1chain
-          return ({amount,coin,coinFull,chain})
+        if (response.data.data.side == 'buy') {
+          const amount = response.data.data.dealSize;
+          const coin = coin1;
+          const coinFull = coin1full;
+          const chain = coin1chain;
+          return { amount, coin, coinFull, chain };
         }
 
-        if (response.data.data.side == 'sell'){
-          const amount = Number(response.data.data.dealFunds) - Number(response.data.data.fee)
-          const coin = coin2
-          const coinFull = coin2full
-          const chain = coin2chain
-          return ({amount,coin,coinFull,chain})
+        if (response.data.data.side == 'sell') {
+          const amount =
+            Number(response.data.data.dealFunds) -
+            Number(response.data.data.fee);
+          const coin = coin2;
+          const coinFull = coin2full;
+          const chain = coin2chain;
+          return { amount, coin, coinFull, chain };
         }
-    
       }
     }
-
-    
-    
-
-    
   } catch (err) {
     console.error('Ошибка сервера:', err.message || err);
     res.status(500).json({
@@ -913,27 +919,14 @@ async function checkOrderExecution(order_id,coin1,coin2,coin1full,coin2full,coin
   }
 }
 
-
-
-
-
-
 // получить адрес для перевода с биржи на NP
-async function getNpAdress(userNP,coin,amount){
-
+async function getNpAdress(userNP, coin, amount) {
   try {
-
     const token = await getTokenFromNowPayment();
 
-    const payAdress = await createPayAdress(
-      token,
-      coin,
-      amount,
-      userNP,
-    );
+    const payAdress = await createPayAdress(token, coin, amount, userNP);
 
-
-    return (payAdress);
+    return payAdress;
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -941,9 +934,6 @@ async function getNpAdress(userNP,coin,amount){
     });
   }
 }
-
-
-
 
 async function getTokenFromNowPayment() {
   const response = await axios.post(
@@ -961,10 +951,6 @@ async function getTokenFromNowPayment() {
 
   return response.data.token;
 }
-
-
-
-
 
 async function createPayAdress(token, coin, minAmount, nowpaymentid) {
   try {
@@ -996,7 +982,6 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       is_fixed_rate: false,
       is_fee_paid_by_user: false,
       ipn_callback_url: process.env.WEBHOOKADRESS_FROMSTOCKTOUSER,
-
     };
 
     // 3. Выполнение запроса с обработкой ошибок
@@ -1021,7 +1006,10 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
     //FIXME: писать в эту БД или другую???
     // await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
     // console.log('for one more ID',response.data )
-    return ({adress: response.data.result.pay_address, uid: response.data.result.payment_id});
+    return {
+      adress: response.data.result.pay_address,
+      uid: response.data.result.payment_id,
+    };
   } catch (error) {
     console.error('Error in createUserInNowPayment:', {
       error: error.response?.data || error.message,
@@ -1031,12 +1019,8 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
   }
 }
 
-
-
-
-
 //отправить с биржи монеты в NP
-async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
+async function makeWithdrawFromStockToNp(amount, coin, adress, chain) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -1090,42 +1074,37 @@ async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
     const requestPath = '/api/v3/withdrawals';
     const method = 'POST';
 
-    const currencyValue = coin.toUpperCase()
-    const chainValue = chain.toLowerCase()
-
+    const currencyValue = coin.toUpperCase();
+    const chainValue = chain.toLowerCase();
 
     const orderBody = {
-       currency: currencyValue,
-       toAddress: adress,
-       amount: amount,
-       withdrawType: 'ADDRESS',
-       chain: chainValue,
-       isInner: false,
-       remark: "this is Remark"
-      };
+      currency: currencyValue,
+      toAddress: adress,
+      amount: amount,
+      withdrawType: 'ADDRESS',
+      chain: chainValue,
+      isInner: false,
+      remark: 'this is Remark',
+    };
 
-      console.log('orderBody=',orderBody)
+    console.log('orderBody=', orderBody);
 
-     
-
-    const response = await axios.post(`https://api.kucoin.com${requestPath}`, 
+    const response = await axios.post(
+      `https://api.kucoin.com${requestPath}`,
       orderBody,
       {
-      headers: signer.headers(requestPath, method,orderBody),
-    });
+        headers: signer.headers(requestPath, method, orderBody),
+      }
+    );
 
     // Optional: check KuCoin API response code
     if (response.data.code !== '200000') {
       console.error('Ошибка от KuCoin:', response.data);
       return res.status(400).json({ error: response.data });
     } else {
-    
-      console.log('fr withdraw fn ', response.data) 
-      return (response.data.data.withdrawalId);
-    
+      console.log('fr withdraw fn ', response.data);
+      return response.data.data.withdrawalId;
     }
-
-    
   } catch (err) {
     console.error('Ошибка сервера:', err.message, err?.response?.data || err);
     res.status(500).json({
@@ -1135,12 +1114,8 @@ async function makeWithdrawFromStockToNp(amount,coin,adress,chain) {
   }
 }
 
-
-
-
-
 // получить число для округления
-async function getWithdrawalInfo(coin,chain) {
+async function getWithdrawalInfo(coin, chain) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -1190,17 +1165,14 @@ async function getWithdrawalInfo(coin,chain) {
     // Generate a unique client order ID
     const clientOid = crypto.randomUUID();
 
-    const currencyValue = coin.toUpperCase()
-    const chainValue = chain.toLowerCase()
-    
+    const currencyValue = coin.toUpperCase();
+    const chainValue = chain.toLowerCase();
+
     //get adresses
     const requestPath = `/api/v1/withdrawals/quotas?currency=${currencyValue}&chain=${chainValue}`;
     const method = 'GET';
 
-
-
-    const response = await axios.get(`https://api.kucoin.com${requestPath}`, 
-      {
+    const response = await axios.get(`https://api.kucoin.com${requestPath}`, {
       headers: signer.headers(requestPath, method),
     });
 
@@ -1209,13 +1181,9 @@ async function getWithdrawalInfo(coin,chain) {
       console.error('Ошибка от KuCoin:', response.data);
       return res.status(400).json({ error: response.data });
     } else {
-    
-      console.log('fr withdraw fn ', response.data) 
-      return ({precision: response.data.data.precision, statusFn: 'ok' });
-    
+      console.log('fr withdraw fn ', response.data);
+      return { precision: response.data.data.precision, statusFn: 'ok' };
     }
-
-    
   } catch (err) {
     console.error('Ошибка сервера:', err.message, err?.response?.data || err);
     res.status(500).json({
@@ -1225,12 +1193,8 @@ async function getWithdrawalInfo(coin,chain) {
   }
 }
 
-
-
-
 //трансфер с Trade на Main аккаунт внутри биржи
-async function transferInStock(coin,amount){ 
-
+async function transferInStock(coin, amount) {
   try {
     class KcSigner {
       constructor(apiKey, apiSecret, apiPassphrase) {
@@ -1284,37 +1248,33 @@ async function transferInStock(coin,amount){
     const requestPath = '/api/v3/accounts/universal-transfer';
     const method = 'POST';
 
-
     const orderBody = {
-       clientOid: clientOid,
-        type: "INTERNAL",
-        currency: coin,
-        amount: amount,
-        fromAccountType: "TRADE",
-        toAccountType: "MAIN"
-      };
+      clientOid: clientOid,
+      type: 'INTERNAL',
+      currency: coin,
+      amount: amount,
+      fromAccountType: 'TRADE',
+      toAccountType: 'MAIN',
+    };
 
+    console.log('orderBody=', orderBody);
 
-      console.log('orderBody=',orderBody)
-
-
-    const response = await axios.post(`https://api.kucoin.com${requestPath}`, 
+    const response = await axios.post(
+      `https://api.kucoin.com${requestPath}`,
       orderBody,
       {
-      headers: signer.headers(requestPath, method,orderBody),
-    });
+        headers: signer.headers(requestPath, method, orderBody),
+      }
+    );
 
     // Optional: check KuCoin API response code
     if (response.data.code !== '200000') {
       console.error('Ошибка от KuCoin:', response.data);
       return res.status(400).json({ error: response.data });
     } else {
-    
-      console.log('средства отправлены с Trade на Main ') 
-      return ({statusFn: 'ok'});
+      console.log('средства отправлены с Trade на Main ');
+      return { statusFn: 'ok' };
     }
-
-    
   } catch (err) {
     console.error('Ошибка сервера:', err.message, err?.response?.data || err);
     res.status(500).json({
