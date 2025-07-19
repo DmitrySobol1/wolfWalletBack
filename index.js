@@ -12,6 +12,7 @@ import RqstExchangeSchemaModel from './models/rqstExchange.js';
 import TradingPairsModel from './models/tradingPairs.js';
 import RqstStockMarketOrderModel from './models/rqstStockMarketOrder.js';
 import StockAdressesModel from './models/stockAdresses.js';
+import ComissionStockMarketModel from './models/comissionStockMarket.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -658,11 +659,11 @@ async function validateAdress(adress, coin) {
   }
 }
 
-//сохранить новую комиссию за вывод
+//сохранить новую комиссию 
 app.post('/api/save_new_comission', async (req, res) => {
-  const doc = new ComissionToPayoutModel({
+  const doc = new ComissionStockMarketModel({
     qty: 1,
-    coin: 'btc',
+    coin: 'ourComission',
   });
 
   const comission = await doc.save();
@@ -1365,7 +1366,7 @@ app.get('/api/get_withdrawal_fee', async (req, res) => {
       networkFees = response.data.fee;
     }
 
-    return res.json({ networkFees });
+    return res.json({ networkFees,statusFn:'ok' });
   } catch (err) {
     console.log(err);
     res.status(500).json({
@@ -2656,6 +2657,122 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
       success: false,
       message: 'Внутренняя ошибка сервера',
     });
+  }
+});
+
+
+//получение минимальных сумм для ввода/вывода NP|stock - start
+
+app.get('/api/get_minWithdrawNp', async (req, res) => {
+  try {
+    
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    if (response.data.success != true){
+      return res.json({statusFn:'notOk'})
+    } else {
+
+      res.json({
+      statusFn: 'ok',
+      result: response.data.result,
+    });
+
+    } 
+    
+  } catch (error) {
+    res.status(500).json({ status: 'server error', error: error.message });
+  }
+});
+
+
+app.get('/api/get_minDepositWithdrawStock', async (req, res) => {
+  try {
+    const response = await axios.get(
+      `https://api.kucoin.com/api/v3/currencies/${req.query.coin}?chain=${req.query.chain}`
+    );
+       
+    if (
+    response.data.code === '200000' &&
+    Array.isArray(response.data.data.chains) &&
+    response.data.data.chains.length > 0 &&
+    response.data.data.chains[0].depositMinSize &&
+    response.data.data.chains[0].withdrawalMinSize
+  ) {
+    res.json({
+      statusFn: 'ok',
+      deposit: response.data.data.chains[0].depositMinSize,
+      withdrawal: response.data.data.chains[0].withdrawalMinSize,
+    });
+  } else {
+    res.json({ statusFn: 'notOk' });
+  }
+
+
+  } catch (err) {
+    console.log(err);
+    res.json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+
+app.get('/api/get_minDepositNp', async (req, res) => {
+  try {
+    
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/min-amount?currency_from=${req.query.coin}&fiat_equivalent=usd&is_fixed_rate=False&is_fee_paid_by_user=False`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    if (response.data?.min_amount){
+       res.json({
+      statusFn: 'ok',
+      result: response.data.min_amount,
+    });
+      
+    } else {
+        return res.json({statusFn:'notOk'})
+    } 
+    
+  } catch (error) {
+    return res.json({statusFn:'notOk', error:error.message  })
+    // res.status(500).json({ status: 'server error', error: error.message });
+  }
+});
+
+//получение минимальных сумм для ввода/вывода NP|stock - finish
+
+
+
+// получить сумму комиссий
+app.get('/api/get_ourComissionStockMarket', async (req, res) => {
+  try {
+    const comission = await ComissionStockMarketModel.findOne({
+      coin: 'ourComission',
+    });
+
+    if (comission) {
+      const value = comission.qty
+      return res.json({ comission:value, statusFn: 'ok'  });
+    } else {
+      return res.json({ statusFn: 'notok'  });
+    }
+    
+  } catch (err) {
+    console.log(err);
+    return res.json({ statusFn: 'notok', message: 'ошибка сервера'  });
   }
 });
 
