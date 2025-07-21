@@ -288,9 +288,18 @@ export async function executeCheckTask() {
       const precision = Number(getWithdrawalInfoResult.precision);
 
       if (!isNaN(amountToSendToNp)) {
-        amountToSendToNp = Number(
-          parseFloat(amountToSendToNp).toFixed(precision)
-        );
+
+        console.log('amountToSendToNp до округления вниз =',amountToSendToNp)
+
+        // .. округление вниз
+        const factor = Math.pow(10, precision);
+        amountToSendToNp = Math.floor(parseFloat(amountToSendToNp) * factor) / factor;
+
+        console.log('amountToSendToNp после округления вниз =',amountToSendToNp)
+
+        // amountToSendToNp = Number(
+        //   parseFloat(amountToSendToNp).toFixed(precision)
+        // );
       } else {
         console.error('amountToSendToNp is not a number:', amountToSendToNp);
       }
