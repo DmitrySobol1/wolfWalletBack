@@ -141,9 +141,13 @@ export async function executeCheckTask() {
         }
         
 
-        // не надо вычитать network fees - они сами вычнутся при переводе на биржу
+        // сумма для перевода на биржу
         const amountSentToStockValue =
         Number(item.amount) -  Number(item.amount)*Number(ourComission);
+
+
+        // .. сумма, которая дойдет до Биржи
+        const amountBeReceivedByStock = Number(amountSentToStockValue) - Number(networkFeesResponse)
         
         
         console.log('step5.3 | initial num=', item.amount);
@@ -154,7 +158,9 @@ export async function executeCheckTask() {
 
         await RqstStockMarketOrderModel.findOneAndUpdate(
           { _id: item._id },
-          { $set: { amountSentToStock: amountSentToStockValue } },
+          { $set: { amountSentToStock: amountSentToStockValue,
+                     amountBeReceivedByStock: amountBeReceivedByStock
+           } },
           { new: true }
         );
 
@@ -213,11 +219,13 @@ export async function executeCheckTask() {
     if (item.status == 'CoinReceivedByStock') {
       console.log('запуск статуса CoinReceivedByStock ');
 
+
+
       const placeOrderFunction = await placeOrder(
         item.coin1short,
         item.coin2short,
         item.type,
-        item.amountSentToStock
+        item.amountBeReceivedByStock
       );
 
       //FIXME: добавить, если пришла ошибка

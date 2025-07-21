@@ -2211,7 +2211,8 @@ app.post('/api/new_stockorder_market', async (req, res) => {
       trtCoinFromStockToNP_np_id: null,
       trtCoinFromStockToNP_stock_id: null,
       amountAccordingBaseIncrement: null,
-      amountSentBackToNp: null
+      amountSentBackToNp: null,
+      amountBeReceivedByStock: null
     });
 
     await doc.save();
