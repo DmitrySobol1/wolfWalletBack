@@ -92,6 +92,9 @@ const RqstStockMarketOrderSchema = new mongoose.Schema(
     amountSentBackToNp:{
       type: Number
     },
+    amountBeReceivedByStock:{
+      type: Number
+    },
 
 
   
