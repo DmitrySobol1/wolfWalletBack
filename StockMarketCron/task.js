@@ -140,12 +140,14 @@ export async function executeCheckTask() {
             ourComission = Number(ourComissionResponse.ourComission) / 100
         }
         
+
+        // не надо вычитать network fees - они сами вычнутся при переводе на биржу
         const amountSentToStockValue =
-        Number(item.amount) - Number(networkFeesResponse) - Number(item.amount)*Number(ourComission);
+        Number(item.amount) -  Number(item.amount)*Number(ourComission);
         
         
         console.log('step5.3 | initial num=', item.amount);
-        console.log('step5.3 | network fees=', networkFeesResponse);
+        // console.log('step5.3 | network fees=', networkFeesResponse);
         console.log('step5.3 | our comission=', ourComission);
         console.log('step5.3 | amountSentToStockValue=', amountSentToStockValue);
 
@@ -171,7 +173,7 @@ export async function executeCheckTask() {
             {
               address: depositAdres,
               currency: sendingCoinFull,
-              amount: item.amount,
+              amount: item.amountSentToStock,
               //FIXME: сделать еще один хук
               ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
             },

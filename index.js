@@ -2470,18 +2470,18 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
 
       if (item.type == 'buy') {
         infoText = {
-          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
-          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
-          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
+          ru: `покупка ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+          en: `buying ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+          de: `kauf ${item.coin1full} für ${item.amount} ${item.coin2full}`,
         };
       }
 
 
       if (item.type == 'sell') {
         infoText = {
-          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
-          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
-          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
+          ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
+          en: `selling ${item.amount} ${item.coin1full} for ${item.coin2full}`,
+          de: `verkauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
         };
       }
 
@@ -2730,10 +2730,14 @@ app.get('/api/get_minDepositWithdrawStock', async (req, res) => {
     response.data.data.chains[0].depositMinSize &&
     response.data.data.chains[0].withdrawalMinSize
   ) {
+    
+    //чтобы избежать нехватки при перевода с Биржи на Клиента
+    const sum= Number(response.data.data.chains[0].withdrawalMinSize) + Number(response.data.data.chains[0].withdrawalMinFee)
+    
     res.json({
       statusFn: 'ok',
       deposit: response.data.data.chains[0].depositMinSize,
-      withdrawal: response.data.data.chains[0].withdrawalMinSize,
+      withdrawal: sum,
     });
   } else {
     res.json({ statusFn: 'notOk' });
