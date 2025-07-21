@@ -1,15 +1,15 @@
 export const TEXTS = {
  
   ru: {
-    title: 'Обмен завершен',
-    text: 'вам на баланс ',
+    title: 'Операция на бирже прошла успешно',
+    text: 'операция на бирже прошла успешно',
   },
   en: {
-    title: 'Exchange done',
+    title: 'The crypto stock operation was  successfully done',
     text: 'successfully sent to another user ',
   },
   de: {
-    title: 'Austausch erfolgt',
+    title: 'Das Börsengeschäft war ein Erfolg',
     text: 'erfolgreich an einen anderen Benutzer gesendet ',
   }
   

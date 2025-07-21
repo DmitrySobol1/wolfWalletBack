@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-// import dotenv from 'dotenv';
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 //FIXME:
 //для прода
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+// import dotenv from 'dotenv';
+// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-// executeCheckTask();
+executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
@@ -17,6 +17,8 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 import mongoose from 'mongoose';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import StockAdressesModel from '../models/stockAdresses.js';
+import ComissionStockModel from '../models/comissionStockMarket.js';
+
 
 import { TEXTS } from './texts.js';
 
@@ -123,10 +125,30 @@ export async function executeCheckTask() {
           //FIXME: добавить выход из кода
         }
 
-        console.log('step5 | network fees=', networkFeesResponse);
+        // console.log('step5 | network fees=', networkFeesResponse);
 
+
+        // получить нашу комиссию по Маркету
+        const ourComissionResponse = await getOurComissionMarket();
+        if (ourComissionResponse.statusFn != 'ok'){
+          // FIXME: добваить вывод на фронт ошибки
+        }  
+        
+        let ourComission = 0
+
+        if (!isNaN(ourComissionResponse.ourComission) && ourComissionResponse.ourComission !== null){
+            ourComission = Number(ourComissionResponse.ourComission) / 100
+        }
+        
         const amountSentToStockValue =
-          Number(item.amount) - Number(networkFeesResponse);
+        Number(item.amount) - Number(networkFeesResponse) - Number(item.amount)*Number(ourComission);
+        
+        
+        console.log('step5.3 | initial num=', item.amount);
+        console.log('step5.3 | network fees=', networkFeesResponse);
+        console.log('step5.3 | our comission=', ourComission);
+        console.log('step5.3 | amountSentToStockValue=', amountSentToStockValue);
+
 
         await RqstStockMarketOrderModel.findOneAndUpdate(
           { _id: item._id },
@@ -316,6 +338,7 @@ export async function executeCheckTask() {
           $set: {
             trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
             status: 'stockSentCoinToNp',
+            amountSentBackToNp: amountToSendToNp
           },
         },
         { new: true }
@@ -337,17 +360,26 @@ export async function executeCheckTask() {
       if (payStatusFunction.result == 'ok') {
         console.log('payStatusFunction', payStatusFunction);
 
+
+
         if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid' || payStatusFunction.payStatus.toLowerCase() == 'finished' ) {
           console.log('step 17 | бабки пришли');
           console.log('payStatusFunction', payStatusFunction);
 
           console.log('отправить юзеру сообщение');
 
-          // const { title, text } = TEXTS[type]?.[language];
+                  
+          const language = item.language;
+          const { title} = TEXTS[language];
+
+
+          // console.log('CHECK | lang=', language )
+          // console.log('CHECK | MSG WILL BE SENT=', title )
+
           // const fullText = text + textQtyCoins;
 
-          const title = 'От биржи';
-          const fullText = 'операция на бирже прошла успешно';
+          // const title = 'От биржи';
+          // const fullText = 'операция на бирже прошла успешно';
 
           const chatId = item.tlgid;
           const botToken = process.env.BOT_TOKEN;
@@ -357,14 +389,15 @@ export async function executeCheckTask() {
             return;
           }
 
-          const message = `${title}\n${fullText}`;
+          // const message = `${title}\n${fullText}`;
+          // const message = title;
 
           try {
             const response = await axios.post(
               `https://api.telegram.org/bot${botToken}/sendMessage`,
               {
                 chat_id: chatId,
-                text: message,
+                text: title,
               }
             );
 
@@ -621,6 +654,37 @@ async function getNetworkFees(coin, amount) {
     });
   }
 }
+
+// получить нашу комиссию за сделку - Market
+async function getOurComissionMarket() {
+  try {
+    
+     const response = await ComissionStockModel.findOne({
+          coin: 'ourComission'
+        });
+
+        const ourComission = response.qty;
+
+
+    if (ourComission) {
+      return ({ourComission:ourComission,statusFn:'ok'});
+       
+    } else {
+        return ({statusFn:'notok'});
+    }
+
+    
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+}
+
+
+
+
 
 //получить bearer token
 async function getBearerToken() {
@@ -890,6 +954,15 @@ async function checkOrderExecution(
       ) {
         console.log('from fn');
         console.log(response.data);
+
+
+
+        // когда сделка не совершена
+        if (response.data.data.size == response.data.data.cancelledSize) {
+          return
+        }
+
+
 
         if (response.data.data.side == 'buy') {
           const amount = response.data.data.dealSize;
