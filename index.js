@@ -2211,6 +2211,7 @@ app.post('/api/new_stockorder_market', async (req, res) => {
       trtCoinFromStockToNP_np_id: null,
       trtCoinFromStockToNP_stock_id: null,
       amountAccordingBaseIncrement: null,
+      amountSentBackToNp: null
     });
 
     await doc.save();
@@ -2462,31 +2463,49 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
       const statusText = {
         ru: 'в работе',
         en: 'in progress',
-        de: 'im Gange',
+        de: 'im gange',
       };
 
       let infoText = {};
 
       if (item.type == 'buy') {
         infoText = {
-          ru: `покупка ${item.coin1full}`,
-          en: `buying ${item.coin1full}`,
-          de: `kauf ${item.coin1full}`,
+          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
         };
       }
+
 
       if (item.type == 'sell') {
         infoText = {
-          ru: `продажа ${item.coin1full}`,
-          en: `selling ${item.coin1full}`,
-          de: `verkauf ${item.coin1full}`,
+          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
+          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
+          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
         };
       }
 
+
+      // if (item.type == 'buy') {
+      //   infoText = {
+      //     ru: `покупка ${item.amount} ${item.coin1full} за ${item.coin2full} `,
+      //     en: `buying ${item.amount} ${item.coin1full} for ${item.coin2full}`,
+      //     de: `kauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
+      //   };
+      // }
+
+      // if (item.type == 'sell') {
+      //   infoText = {
+      //     ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
+      //     en: `selling ${item.amount} ${item.coin1full} for ${item.coin2full}`,
+      //     de: `verkauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
+      //   };
+      // }
+
       return {
-        status: statusText[lang],
-        type: type[lang],
-        info: infoText[lang],
+        status: statusText,
+        type: type,
+        info : infoText
       };
     });
 
@@ -2578,9 +2597,16 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
     ];
 
     const processedMarketOrders = marketOrders.map((item) => {
+      // const date = new Date(item.updatedAt);
+      // const day = date.getDate();
+      // const month = months[date.getMonth()];
+      // const hours = date.getHours().toString().padStart(2, '0');
+      // const minutes = date.getMinutes().toString().padStart(2, '0');
+
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
@@ -2590,31 +2616,30 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
         de: 'marktauftrag',
       };
 
-      
 
       let infoText = {};
 
       if (item.type == 'buy') {
         infoText = {
-          ru: `покупка ${item.coin1full}`,
-          en: `buying ${item.coin1full}`,
-          de: `kauf ${item.coin1full}`,
+          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
         };
       }
 
+
       if (item.type == 'sell') {
         infoText = {
-          ru: `продажа ${item.coin1full}`,
-          en: `selling ${item.coin1full}`,
-          de: `verkauf ${item.coin1full}`,
+          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
+          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
+          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
         };
       }
 
       return {
-        // status: statusText[lang],
-        type: type[lang],
-        info: infoText[lang],
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        type: type,
+        info: infoText,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
       };
     });
 

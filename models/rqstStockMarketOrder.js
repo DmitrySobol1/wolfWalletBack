@@ -89,6 +89,10 @@ const RqstStockMarketOrderSchema = new mongoose.Schema(
     amountAccordingBaseIncrement:{
       type: Number
     },
+    amountSentBackToNp:{
+      type: Number
+    },
+
 
   
   },
