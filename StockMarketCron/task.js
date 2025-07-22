@@ -47,7 +47,7 @@ export async function executeCheckTask() {
 
   const recordsNew = await RqstStockMarketOrderModel.find({
     status: {
-      $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockSentCoinToNp'],
+      $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockTrtFromTradeToMain','stockSentCoinToNp', ],
     },
   }).exec();
 
@@ -248,6 +248,7 @@ export async function executeCheckTask() {
     }
 
     if (item.status == 'orderPlaced') {
+      
       const checkOrderExecutionResult = await checkOrderExecution(
         item.order_id,
         item.coin1short,
@@ -263,16 +264,16 @@ export async function executeCheckTask() {
       const coinToSendToNpFull = checkOrderExecutionResult.coinFull;
       const chainToSendToNp = checkOrderExecutionResult.chain;
 
-      console.log(
-        'step 12 | from code | amountToSendToNp = ',
-        amountToSendToNp
-      );
-      console.log('step 12 | from code | coinToSendToNp = ', coinToSendToNp);
-      console.log(
-        'step 12 | from code | coinToSendToNpFull = ',
-        coinToSendToNpFull
-      );
-      console.log('step 12 | from code | chainToSendToNp = ', chainToSendToNp);
+      // console.log(
+      //   'step 12 | from code | amountToSendToNp = ',
+      //   amountToSendToNp
+      // );
+      // console.log('step 12 | from code | coinToSendToNp = ', coinToSendToNp);
+      // console.log(
+      //   'step 12 | from code | coinToSendToNpFull = ',
+      //   coinToSendToNpFull
+      // );
+      // console.log('step 12 | from code | chainToSendToNp = ', chainToSendToNp);
 
       // получить число для округления
       const getWithdrawalInfoResult = await getWithdrawalInfo(
@@ -304,22 +305,61 @@ export async function executeCheckTask() {
         console.error('amountToSendToNp is not a number:', amountToSendToNp);
       }
 
-      // amountToSendToNp = Number(amountToSendToNp.toFixed(precision))
+      const tranferInStockresult = await transferInStock(
+        coinToSendToNp,
+        amountToSendToNp
+      );
+      if (tranferInStockresult.statusFn != 'ok') {
+        //FIXME: выпасть в ошибку
+        // console.log ('Ошибка в getWithdrawalInfo ')
+      }  
 
-      // console.log('amountToSendToNp',amountToSendToNp)
-      // console.log(typeof amountToSendToNp)
 
-      // return
+      await RqstStockMarketOrderModel.findOneAndUpdate(
+        { _id: item._id },
+        {
+          $set: {
+            trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
+            status: 'stockTrtFromTradeToMain',
+            amountSentBackToNp: amountToSendToNp
+          },
+        },
+        { new: true }
+      );
 
-      //TODO: для быстрых тестов
-      // const coinToSendToNp = 'TON'
-      // amountToSendToNp = '0.4'
+      console.log('step 13 | TRT с Trade на Main на Бирже выполнен')
+
+    }
+
+    
+   
+   
+    if (item.status == 'stockTrtFromTradeToMain') {
+
+
+      const checkOrderExecutionResult = await checkOrderExecution(
+        item.order_id,
+        item.coin1short,
+        item.coin2short,
+        item.coin1full,
+        item.coin2full,
+        item.coin1chain,
+        item.coin2chain
+      );
+
+      let amountToSendToNp = item.amountSentBackToNp;
+
+      const coinToSendToNp = checkOrderExecutionResult.coin;
+      const coinToSendToNpFull = checkOrderExecutionResult.coinFull;
+      const chainToSendToNp = checkOrderExecutionResult.chain;
+
 
       const getNpAdressResult = await getNpAdress(
         item.userNP,
         coinToSendToNpFull,
         amountToSendToNp
       );
+      
       const adresssValue = getNpAdressResult.adress;
       const idValue = getNpAdressResult.uid;
 
@@ -329,20 +369,13 @@ export async function executeCheckTask() {
         { new: true }
       );
 
-      console.log('step 13 | pay adress=', adresssValue);
+      console.log('step 14 | pay adress=', adresssValue);
       console.log(
-        'step 14 | внутренний id NP что бы отследить перевод с биржи',
+        'step 15 | внутренний id NP что бы отследить перевод с биржи',
         idValue
       );
 
-      const tranferInStockresult = await transferInStock(
-        coinToSendToNp,
-        amountToSendToNp
-      );
-      if (tranferInStockresult.statusFn != 'ok') {
-        //FIXME: выпасть в ошибку
-        // console.log ('Ошибка в getWithdrawalInfo ')
-      }
+
 
       const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(
         amountToSendToNp,
@@ -364,13 +397,16 @@ export async function executeCheckTask() {
       );
 
       console.log(
-        'step 15 | перевод с биржи на NP отправлен, id=',
+        'step 16 | перевод с биржи на NP отправлен, id=',
         makeWithdrawFromStockToNpResult
       );
-    }
 
+    }
+    
+    
+    
     if (item.status == 'stockSentCoinToNp') {
-      console.log('step 16 | старт проверки, пришли ли бабки юзеру с биржи');
+      console.log('step 17 | старт проверки, пришли ли бабки юзеру с биржи');
 
       const payStatusFunction = await getPaymentStatus(
         item.trtCoinFromStockToNP_np_id
@@ -382,7 +418,7 @@ export async function executeCheckTask() {
 
 
         if (payStatusFunction.payStatus.toLowerCase() == 'partially_paid' || payStatusFunction.payStatus.toLowerCase() == 'finished' ) {
-          console.log('step 17 | бабки пришли');
+          console.log('step 18 | бабки пришли');
           console.log('payStatusFunction', payStatusFunction);
 
           console.log('отправить юзеру сообщение');
