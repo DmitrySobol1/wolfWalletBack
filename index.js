@@ -1064,39 +1064,35 @@ app.get('/api/get_my_payin', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+
+    const stockOperations = await RqstStockMarketOrderModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+
     if (
-      (!payins && !transfers && !exchange) ||
-      (payins.length === 0 && transfers.length === 0 && exchange.length === 0)
+      (!payins && !transfers && !exchange && !stockOperations) ||
+      (payins.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length===0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
 
-    const months = [
-      'янв',
-      'фев',
-      'мар',
-      'апр',
-      'мая',
-      'июн',
-      'июл',
-      'авг',
-      'сен',
-      'окт',
-      'ноя',
-      'дек',
-    ];
 
     const processedPayins = payins.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
       return {
         coin: item.price_currency,
         qty: item.amount_received,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'payin',
         forSort: item.updatedAt,
       };
@@ -1104,15 +1100,16 @@ app.get('/api/get_my_payin', async (req, res) => {
 
     const processedTransfers = transfers.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
       return {
         coin: item.coin,
         qty: item.qtyToTransfer,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'transfer',
         forSort: item.updatedAt,
       };
@@ -1120,24 +1117,46 @@ app.get('/api/get_my_payin', async (req, res) => {
 
     const processedExchanges = exchange.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
       return {
         coin: item.coinTo,
         qty: item.amountTo,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'exchange',
         forSort: item.updatedAt,
       };
     });
 
+
+     const processedStockOperations = stockOperations.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.type == 'buy' ? item.coin1full : item.coin2full,
+        qty:  item.amountSentBackToNp,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        type: 'stockMarket',
+        forSort: item.updatedAt,
+      };
+    });
+
+
+
     const total = [
       ...processedPayins,
       ...processedTransfers,
       ...processedExchanges,
+      ...processedStockOperations
     ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);
@@ -1196,45 +1215,36 @@ app.get('/api/get_my_payout', async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+    const stockOperations = await RqstStockMarketOrderModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+
+
     if (
-      (!payouts && !transfers && !exchange) ||
-      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0)
+      (!payouts && !transfers && !exchange && !stockOperations) ||
+      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length === 0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
 
-    const months = [
-      'янв',
-      'фев',
-      'мар',
-      'апр',
-      'мая',
-      'июн',
-      'июл',
-      'авг',
-      'сен',
-      'окт',
-      'ноя',
-      'дек',
-    ];
-
+   
     const processedPayouts = payouts.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
-      // return {
-      //   ...item,
-      //   formattedDate: `${day} ${month} ${hours}:${minutes}`,
-      // };
 
       return {
         coin: item.coin,
         qty: item.qtyToSend,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'payout',
         forSort: item.updatedAt,
       };
@@ -1242,21 +1252,17 @@ app.get('/api/get_my_payout', async (req, res) => {
 
     const processedTransfers = transfers.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      // Ошибка 2: Возвращаем новый объект, а не мутируем исходный
-      // return {
-      //   ...item,
-      //   formattedDate: `${day} ${month} ${hours}:${minutes}`,
-      // };
 
       return {
         coin: item.coin,
         qty: item.qtyToTransfer,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'transfer',
         forSort: item.updatedAt,
       };
@@ -1264,24 +1270,46 @@ app.get('/api/get_my_payout', async (req, res) => {
 
     const processedExchanges = exchange.map((item) => {
       const date = new Date(item.updatedAt);
-      const day = date.getDate();
-      const month = months[date.getMonth()];
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
       const hours = date.getHours().toString().padStart(2, '0');
       const minutes = date.getMinutes().toString().padStart(2, '0');
 
       return {
         coin: item.coinFrom,
         qty: item.amountFrom,
-        formattedDate: `${day} ${month} ${hours}:${minutes}`,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
         type: 'exchange',
         forSort: item.updatedAt,
       };
     });
 
+
+    const processedStockOperations = stockOperations.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.type == 'buy' ? item.coin2full : item.coin1full,
+        qty:  item.amount,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        type: 'stockMarket',
+        forSort: item.updatedAt,
+      };
+    });
+
+
+
     const total = [
       ...processedPayouts,
       ...processedTransfers,
       ...processedExchanges,
+      ...processedStockOperations
     ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);

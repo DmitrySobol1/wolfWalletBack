@@ -173,6 +173,8 @@ export async function executeCheckTask() {
 
         const token = await getBearerToken();
 
+       
+
         const requestData = {
           ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
           withdrawals: [
@@ -186,14 +188,26 @@ export async function executeCheckTask() {
           ],
         };
 
+        
+
         const createPayoutResult = await createpayout(requestData, token);
 
+
         const batch_withdrawal_id = createPayoutResult.id;
-        const payout_id = createPayoutResult.withdrawals[0].id;
+
+        const payout_id = createPayoutResult.withdrawals?.[0]?.id
+        if (payout_id == undefined) {
+          console.log('ошибка с payout_id ')
+          throw new Error("Payout ID not found in withdrawals!");
+        }
+
+        // const payout_id = createPayoutResult.withdrawals[0].id;
         console.log('step 7 | withdrawal_id=', batch_withdrawal_id);
 
         const code2fa = await create2FAcode();
         console.log('step 8 | code2fa=', code2fa);
+
+
 
         const verify = await verifyPayout(batch_withdrawal_id, code2fa, token);
         console.log('step 9 | verify=', verify);
