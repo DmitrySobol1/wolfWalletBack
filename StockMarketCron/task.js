@@ -319,7 +319,6 @@ export async function executeCheckTask() {
         { _id: item._id },
         {
           $set: {
-            trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
             status: 'stockTrtFromTradeToMain',
             amountSentBackToNp: amountToSendToNp
           },
