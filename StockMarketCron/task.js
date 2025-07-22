@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-import dotenv from 'dotenv';
-dotenv.config();
+// import dotenv from 'dotenv';
+// dotenv.config();
 
 //FIXME:
 //для прода
-// import dotenv from 'dotenv';
-// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+import dotenv from 'dotenv';
+dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-executeCheckTask();
+// executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
