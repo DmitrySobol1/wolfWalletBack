@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-// import dotenv from 'dotenv';
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 //FIXME:
 //для прода
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+// import dotenv from 'dotenv';
+// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-// executeCheckTask();
+executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
@@ -248,6 +248,8 @@ export async function executeCheckTask() {
     }
 
     if (item.status == 'orderPlaced') {
+
+      console.log('начинаю обработку статус=orderPlaced')
       
       const checkOrderExecutionResult = await checkOrderExecution(
         item.order_id,
@@ -264,16 +266,16 @@ export async function executeCheckTask() {
       const coinToSendToNpFull = checkOrderExecutionResult.coinFull;
       const chainToSendToNp = checkOrderExecutionResult.chain;
 
-      // console.log(
-      //   'step 12 | from code | amountToSendToNp = ',
-      //   amountToSendToNp
-      // );
-      // console.log('step 12 | from code | coinToSendToNp = ', coinToSendToNp);
-      // console.log(
-      //   'step 12 | from code | coinToSendToNpFull = ',
-      //   coinToSendToNpFull
-      // );
-      // console.log('step 12 | from code | chainToSendToNp = ', chainToSendToNp);
+      console.log(
+        'step 12 | from code | amountToSendToNp = ',
+        amountToSendToNp
+      );
+      console.log('step 12 | from code | coinToSendToNp = ', coinToSendToNp);
+      console.log(
+        'step 12 | from code | coinToSendToNpFull = ',
+        coinToSendToNpFull
+      );
+      console.log('step 12 | from code | chainToSendToNp = ', chainToSendToNp);
 
       // получить число для округления
       const getWithdrawalInfoResult = await getWithdrawalInfo(
@@ -303,7 +305,9 @@ export async function executeCheckTask() {
         // );
       } else {
         console.error('amountToSendToNp is not a number:', amountToSendToNp);
-      }
+      } 
+
+
 
       const tranferInStockresult = await transferInStock(
         coinToSendToNp,
@@ -313,6 +317,8 @@ export async function executeCheckTask() {
         //FIXME: выпасть в ошибку
         // console.log ('Ошибка в getWithdrawalInfo ')
       }  
+
+      console.log('step 12.2  | результат трансфера с Trade Main=',tranferInStockresult)
 
 
       await RqstStockMarketOrderModel.findOneAndUpdate(
@@ -335,7 +341,8 @@ export async function executeCheckTask() {
    
     if (item.status == 'stockTrtFromTradeToMain') {
 
-
+      console.log('начинаю обработку статус=stockTrtFromTradeToMain')
+     
       const checkOrderExecutionResult = await checkOrderExecution(
         item.order_id,
         item.coin1short,
