@@ -2941,35 +2941,30 @@ app.post('/api/new_stockorder_limit', async (req, res) => {
       };
     }
 
-    //FIXME: раскоменти после тестов ************************************************
-    // const response = await axios.post(
-    //   'https://api.nowpayments.io/v1/sub-partner/write-off',
-    //   requestData,
-    //   {
-    //     headers: {
-    //       Authorization: `Bearer ${token}`,
-    //       'Content-Type': 'application/json',
-    //     },
-    //     timeout: 10000, // 10 секунд таймаут
-    //   }
-    // );
+    const response = await axios.post(
+      'https://api.nowpayments.io/v1/sub-partner/write-off',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 секунд таймаут
+      }
+    );
 
     let errorText = '';
     let statusText = 'error';
     let id_clientToMaster = null;
 
 
-    id_clientToMaster = '77777777777777'
-    errorText = 'test';
-    statusText = 'new';
-
-    // if (response.data.result.status === 'PROCESSING') {
-    //   id_clientToMaster = response.data.result.id;
-    //   errorText = 'ok';
-    //   statusText = 'new';
-    // } else {
-    //   errorText = 'ошибка при отправке с счета клиента на мастер счет';
-    // }
+    if (response.data.result.status === 'PROCESSING') {
+      id_clientToMaster = response.data.result.id;
+      errorText = 'ok';
+      statusText = 'new';
+    } else {
+      errorText = 'ошибка при отправке с счета клиента на мастер счет';
+    }
 
     //записать инфо в БД
     const pair = `${req.body.coin1short}-${req.body.coin2short}`
