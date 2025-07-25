@@ -2697,6 +2697,7 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
         type: type,
         info: infoText,
         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        forSort: item.updatedAt,
       };
     });
     
@@ -2739,6 +2740,7 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
         type: type,
         info: infoText,
         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        forSort: item.updatedAt,
       };
     });
 
@@ -2747,7 +2749,7 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
     const total = [
       ...processedMarketOrders,
       ...processedLimitOrders,
-    ];
+    ].sort((a, b) => b.forSort - a.forSort);;
 
     console.log('total', total);
 
