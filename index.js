@@ -11,8 +11,10 @@ import RqstTransferToOtherUserModel from './models/rqstTransferToOtherUser.js';
 import RqstExchangeSchemaModel from './models/rqstExchange.js';
 import TradingPairsModel from './models/tradingPairs.js';
 import RqstStockMarketOrderModel from './models/rqstStockMarketOrder.js';
+import RqstStockLimitOrderModel from './models/rqstStockLimitOrder.js';
 import StockAdressesModel from './models/stockAdresses.js';
 import ComissionStockMarketModel from './models/comissionStockMarket.js';
+import WorkingSocketModel from './models/workingSocket.js';
 import crypto from 'crypto';
 
 import cors from 'cors';
@@ -27,6 +29,7 @@ import { TEXTS } from './texts.js';
 
 import https from 'https';
 import { totalmem } from 'os';
+import { toUnicode } from 'punycode';
 const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
 
 const PORT = process.env.PORT || 4444;
@@ -2836,6 +2839,288 @@ app.get('/api/get_ourComissionStockMarket', async (req, res) => {
 
 
 // БИРЖА - FINISH
+
+
+
+
+
+
+// БИРЖА ЛИМИТ ОРДЕР | START
+
+
+//создать новый rqst - Лимитный ордер для тестов
+app.post('/api/save_new_limitTest', async (req, res) => {
+  
+  const doc = new RqstStockLimitOrderModel({
+      id_clientToMaster: null,
+      id_MasterToStock: null,
+      id_OrderOnStock: null,
+      status: null,
+      statusSocket: 'new',
+      tlgid: 412697670,
+      userNP: null,
+      type: 'sell',
+      pair: 'TON-USDT',
+      coin1short: 'TON',
+      coin1full: 'TON',
+      coin1chain: 'ton',
+      coin2short: 'USDT',
+      coin2full: 'USDTTON',
+      coin2chain: 'ton',
+      amount: 200,
+      price: 0,
+      nowpaymentComission: null,
+      ourComission: null,
+      stockComission: null,
+      language: null,
+      helptext: 'продать BTC по цене 100 USDT',
+      errorText: null,
+      amountSentToStock: null,
+      payout_id: null,
+      batch_withdrawal_id: null,
+      order_id: null,
+      trtCoinFromStockToNP_np_id: null,
+      trtCoinFromStockToNP_stock_id: null,
+      actualPriceOperationWasDoneOnStock: null,
+      amountSentBackToNp: null,
+      amountBeReceivedByStock: null
+    });
+
+    await doc.save();
+    return res.json({ status: 'test order - saved' });
+});
+
+
+app.post('/api/save_new_tickerSocket', async (req, res) => {
+
+  const doc = new WorkingSocketModel({
+    pair: 'TON-USDT',
+    coin1: 'TON',
+    coin2: 'USDT',
+    type: 'sell',
+    price: 1,
+    socketId: 1,
+    rqstId: '68822eb463dbfd6680e0e685'
+  });
+
+
+
+  
+
+  await doc.save();
+  return res.json({ status: 'new ticker - saved' });
+})
+
+
+//новая заявка на биржу - limitOrder
+app.post('/api/new_stockorder_limit', async (req, res) => {
+  try {
+    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+    const { ...userData } = user._doc;
+    const nowpaymentid = userData.nowpaymentid;
+    const language = userData.language;
+
+    //вывод с счета клиента на мастер счет
+    const token = await getTokenFromNowPayment();
+
+    let requestData = {};
+
+    if (req.body.type === 'buy') {
+      requestData = {
+        currency: String(req.body.coin2full),
+        amount: Number(req.body.amount),
+        sub_partner_id: String(nowpaymentid),
+      };
+    }
+
+    if (req.body.type === 'sell') {
+      requestData = {
+        currency: String(req.body.coin1full),
+        amount: Number(req.body.amount),
+        sub_partner_id: String(nowpaymentid),
+      };
+    }
+
+    //FIXME: раскоменти после тестов ************************************************
+    // const response = await axios.post(
+    //   'https://api.nowpayments.io/v1/sub-partner/write-off',
+    //   requestData,
+    //   {
+    //     headers: {
+    //       Authorization: `Bearer ${token}`,
+    //       'Content-Type': 'application/json',
+    //     },
+    //     timeout: 10000, // 10 секунд таймаут
+    //   }
+    // );
+
+    let errorText = '';
+    let statusText = 'error';
+    let id_clientToMaster = null;
+
+
+    id_clientToMaster = '77777777777777'
+    errorText = 'test';
+    statusText = 'new';
+
+    // if (response.data.result.status === 'PROCESSING') {
+    //   id_clientToMaster = response.data.result.id;
+    //   errorText = 'ok';
+    //   statusText = 'new';
+    // } else {
+    //   errorText = 'ошибка при отправке с счета клиента на мастер счет';
+    // }
+
+    //записать инфо в БД
+    const pair = `${req.body.coin1short}-${req.body.coin2short}`
+
+    const doc = new RqstStockLimitOrderModel({
+      id_clientToMaster: id_clientToMaster,
+      id_MasterToStock: null,
+      id_OrderOnStock: null,
+      status: statusText,
+      tlgid: req.body.tlgid,
+      userNP: nowpaymentid,
+      type: req.body.type,
+      pair: pair,  
+      coin1short: req.body.coin1short,
+      coin1full: req.body.coin1full,
+      coin1chain: req.body.coin1chain,
+      coin2short: req.body.coin2short,
+      coin2full: req.body.coin2full,
+      coin2chain: req.body.coin2chain,
+      amount: req.body.amount,
+      price: req.body.limitPrice,
+      nowpaymentComission: null,
+      ourComission: null,
+      stockComission: null,
+      language: language,
+      helptext: req.body.helptext,
+      errorText: errorText,
+      amountSentToStock: null,
+      payout_id: null,
+      batch_withdrawal_id: null,
+      order_id: null,
+      trtCoinFromStockToNP_np_id: null,
+      trtCoinFromStockToNP_stock_id: null,
+      amountAccordingBaseIncrement: null,
+      amountSentBackToNp: null,
+      amountBeReceivedByStock: null
+    });
+
+
+    await doc.save();
+    console.log('success');
+
+    return res.json({ statusFn: 'saved' });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: 'ошибка сервера',
+    });
+  }
+});
+
+
+
+//FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FORSTOCK_LIMIT
+// для обработки "прихода денег на биржу"
+app.post('/api/webhook_forstock_limit', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук payout:', payload);
+
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
+
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
+
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
+
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
+
+    // 4. Безопасное сравнение подписей
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+
+    console.log('Подписи совпадают');
+
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+
+      await processWebhookStockLimit(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// функция обработки вывод средств (payout)
+async function processWebhookStockLimit(payload) {
+  console.log('Обрабатываю:', payload);
+
+  const statusLowerLetter = payload.status.toLowerCase();
+
+  await RqstStockLimitOrderModel.findOneAndUpdate(
+    { batch_withdrawal_id: payload.batch_withdrawal_id },
+    { $set: { status: statusLowerLetter } }
+  );
+
+  console.log('Статус=', payload.status.toLowerCase());
+
+  if (payload.status.toLowerCase() === 'finished') {
+    await RqstStockLimitOrderModel.findOneAndUpdate(
+      { batch_withdrawal_id: payload.batch_withdrawal_id },
+      { $set: { status: 'CoinReceivedByStock' } }
+    );
+  }
+}
+
+
+
+
+
+
+
+// БИРЖА ЛИМИТ ОРДЕР | FINISH
+
+
+
+
 
 app.listen(PORT, (err) => {
   if (err) {

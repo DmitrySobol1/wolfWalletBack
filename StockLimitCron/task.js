@@ -15,7 +15,7 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 // TODO: нужно ли убирать из этого файла const app и прочее?
 
 import mongoose from 'mongoose';
-import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
+import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
 import StockAdressesModel from '../models/stockAdresses.js';
 import ComissionStockModel from '../models/comissionStockMarket.js';
 
@@ -43,11 +43,13 @@ mongoose
 // app.use(cors());
 
 export async function executeCheckTask() {
-  console.log('Начинаю cron4: по маркет ордеру');
+  console.log('Начинаю cron5: по лимитному ордеру');
 
-  const recordsNew = await RqstStockMarketOrderModel.find({
+  const recordsNew = await RqstStockLimitOrderModel.find({
     status: {
-      $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockTrtFromTradeToMain','stockSentCoinToNp', ],
+      $in: ['new', 'CoinReceivedByStock' ],
+    //   TODO: после тестов оставить полную строку
+    //   $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockTrtFromTradeToMain','stockSentCoinToNp', ],
     },
   }).exec();
 
@@ -128,8 +130,8 @@ export async function executeCheckTask() {
         // console.log('step5 | network fees=', networkFeesResponse);
 
 
-        // получить нашу комиссию по Маркету
-        const ourComissionResponse = await getOurComissionMarket();
+        // получить нашу комиссию по Лимиту
+        const ourComissionResponse = await getOurComissionLimit();
         if (ourComissionResponse.statusFn != 'ok'){
           // FIXME: добваить вывод на фронт ошибки
         }  
@@ -156,7 +158,7 @@ export async function executeCheckTask() {
         console.log('step5.3 | amountSentToStockValue=', amountSentToStockValue);
 
 
-        await RqstStockMarketOrderModel.findOneAndUpdate(
+        await RqstStockLimitOrderModel.findOneAndUpdate(
           { _id: item._id },
           { $set: { amountSentToStock: amountSentToStockValue,
                      amountBeReceivedByStock: amountBeReceivedByStock
@@ -176,14 +178,14 @@ export async function executeCheckTask() {
        
 
         const requestData = {
-          ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
+          ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK_LIMIT, 
           withdrawals: [
             {
               address: depositAdres,
               currency: sendingCoinFull,
               amount: item.amountSentToStock,
               //FIXME: сделать еще один хук
-              ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK,
+              ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK_LIMIT,
             },
           ],
         };
@@ -213,7 +215,7 @@ export async function executeCheckTask() {
         console.log('step 9 | verify=', verify);
 
         if (verify === 'OK') {
-          await RqstStockMarketOrderModel.findOneAndUpdate(
+          await RqstStockLimitOrderModel.findOneAndUpdate(
             { _id: item._id },
             {
               $set: {
@@ -230,36 +232,98 @@ export async function executeCheckTask() {
       }
     }
 
+
+
     if (item.status == 'CoinReceivedByStock') {
-      console.log('запуск статуса CoinReceivedByStock ');
+      
+        console.log('запуск статуса CoinReceivedByStock - поиск заявок для лимитного ордера ');
+
+          try {
+            // поиск активных лимит ордеров
+            const activeRqsts = await RqstStockLimitOrderModel.find({
+              status: 'receivedByStock',
+            }).exec();
+        
+            if (!activeRqsts || activeRqsts.length === 0) {
+              console.log('Нет активных заявок');
+              return;
+            }
+        
+            // console.log(activeRqsts);
+            console.log('всего активных ордеров=', activeRqsts.length);
+        
+            const groupedData = Object.groupBy(activeRqsts, (item) => item.pair);
+            // console.log(groupedData);
+        
+            const keys = Object.keys(groupedData);
+        
+            for (const pair of keys) {
+              const items = groupedData[pair];
+              const getPriceResult = await getPrice(pair);
+        
+              if (getPriceResult.statusFn && getPriceResult.statusFn == 'ok') {
+                console.log(pair, ' price=', getPriceResult.price);
+        
+                
+                for (const item of items) {
+                  
+                    if (item.type == 'sell') {
+                    if (getPriceResult.price >= item.price) {
+                      console.log(`ПРОДАЖА: мин цена для продажи у клиента ${item.price} | совершаем продажу order id= ${item.id}` );
+                      
+                      // совершить продажу по цене биржи
+                      await prePlaceOrder(
+                        item.coin1short,
+                        item.coin2short,
+                        item.type,
+                        item.amountBeReceivedByStock,
+                        item.id
+                      );
 
 
+                    } else {
+                      console.log(
+                        `ПРОДАЖА: мин цена для продажи у клиента ${item.price} | НЕ совершаем продажу`
+                      );
+                    }
+                  }
+        
+                  if (item.type == 'buy') {
+                    if (getPriceResult.price <= item.amount) {
+                      console.log(`ПОКУПКА: макс цена для покупки у клиента ${item.price} | совершаем покупку order id= ${item.id}`);
+                      
+                      // совершить покупку по цене биржи
+                       await prePlaceOrder(
+                        item.coin1short,
+                        item.coin2short,
+                        item.type,
+                        item.amountBeReceivedByStock,
+                        item.id
+                      );
 
-      const placeOrderFunction = await placeOrder(
-        item.coin1short,
-        item.coin2short,
-        item.type,
-        item.amountBeReceivedByStock
-      );
 
-      //FIXME: добавить, если пришла ошибка
+                    } else {
+                      console.log(
+                        `ПОКУПКА: макс цена для покупки у клиента ${item.price} | НЕ совершаем покупку`
+                      );
+                    }
+                  }
+                }
+              } else {
+                // FIXME: выдать ошибку
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Ошибка в executeCheckTask:', error);
+          }
 
-      if (placeOrderFunction.status === 'ok') {
-        await RqstStockMarketOrderModel.findOneAndUpdate(
-          { _id: item._id },
-          {
-            $set: {
-              order_id: placeOrderFunction.orderId,
-              status: 'orderPlaced',
-              amountAccordingBaseIncrement: placeOrderFunction.amountWithStep,
-            },
-          },
-          { new: true }
-        );
-
-        console.log('step 11 | from code order_id=', placeOrderFunction);
-      }
+   
     }
+
+
+
+
 
     if (item.status == 'orderPlaced') {
 
@@ -730,12 +794,12 @@ async function getNetworkFees(coin, amount) {
   }
 }
 
-// получить нашу комиссию за сделку - Market
-async function getOurComissionMarket() {
+// получить нашу комиссию за сделку - Лимит
+async function getOurComissionLimit() {
   try {
     
      const response = await ComissionStockModel.findOne({
-          coin: 'ourComissionMarket'
+          coin: 'ourComissionLimit'
         });
 
         const ourComission = response.qty;
@@ -830,124 +894,124 @@ async function verifyPayout(withdrawal_id, code2fa, token) {
   return response.data;
 }
 
-//разместить order на бирже
-async function placeOrder(coin1, coin2, type, amount) {
-  try {
-    class KcSigner {
-      constructor(apiKey, apiSecret, apiPassphrase) {
-        this.apiKey = apiKey || '';
-        this.apiSecret = apiSecret || '';
-        this.apiPassphrase = apiPassphrase || '';
+//разместить order на бирже - OLD
+// async function placeOrder(coin1, coin2, type, amount) {
+//   try {
+//     class KcSigner {
+//       constructor(apiKey, apiSecret, apiPassphrase) {
+//         this.apiKey = apiKey || '';
+//         this.apiSecret = apiSecret || '';
+//         this.apiPassphrase = apiPassphrase || '';
 
-        if (apiPassphrase && apiSecret) {
-          this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-        }
+//         if (apiPassphrase && apiSecret) {
+//           this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+//         }
 
-        if (!apiKey || !apiSecret || !apiPassphrase) {
-          console.warn('API credentials are missing. Access will likely fail.');
-        }
-      }
+//         if (!apiKey || !apiSecret || !apiPassphrase) {
+//           console.warn('API credentials are missing. Access will likely fail.');
+//         }
+//       }
 
-      sign(plain, key) {
-        return crypto.createHmac('sha256', key).update(plain).digest('base64');
-      }
+//       sign(plain, key) {
+//         return crypto.createHmac('sha256', key).update(plain).digest('base64');
+//       }
 
-      headers(requestPath, method = 'POST', body = '') {
-        const timestamp = Date.now().toString();
-        const bodyString =
-          typeof body === 'object' ? JSON.stringify(body) : body;
-        const prehash =
-          timestamp + method.toUpperCase() + requestPath + bodyString;
-        const signature = this.sign(prehash, this.apiSecret);
+//       headers(requestPath, method = 'POST', body = '') {
+//         const timestamp = Date.now().toString();
+//         const bodyString =
+//           typeof body === 'object' ? JSON.stringify(body) : body;
+//         const prehash =
+//           timestamp + method.toUpperCase() + requestPath + bodyString;
+//         const signature = this.sign(prehash, this.apiSecret);
 
-        return {
-          'KC-API-KEY': this.apiKey,
-          'KC-API-PASSPHRASE': this.apiPassphrase,
-          'KC-API-TIMESTAMP': timestamp,
-          'KC-API-SIGN': signature,
-          'KC-API-KEY-VERSION': '3',
-          'Content-Type': 'application/json',
-        };
-      }
-    }
+//         return {
+//           'KC-API-KEY': this.apiKey,
+//           'KC-API-PASSPHRASE': this.apiPassphrase,
+//           'KC-API-TIMESTAMP': timestamp,
+//           'KC-API-SIGN': signature,
+//           'KC-API-KEY-VERSION': '3',
+//           'Content-Type': 'application/json',
+//         };
+//       }
+//     }
 
-    // Load API credentials from environment
-    const key = process.env.KUCOIN_KEY || '';
-    const secret = process.env.KUCOIN_SECRET || '';
-    const passphrase = process.env.KUCOIN_PASSPHRASE || '';
+//     // Load API credentials from environment
+//     const key = process.env.KUCOIN_KEY || '';
+//     const secret = process.env.KUCOIN_SECRET || '';
+//     const passphrase = process.env.KUCOIN_PASSPHRASE || '';
 
-    const signer = new KcSigner(key, secret, passphrase);
+//     const signer = new KcSigner(key, secret, passphrase);
 
-    // Generate a unique client order ID
-    const clientOid = crypto.randomUUID();
+//     // Generate a unique client order ID
+//     const clientOid = crypto.randomUUID();
 
-    //получить цену с учетом минимального шага сети
-    const requestPathForSize = '/api/v2/symbols';
-    const methodForSize = 'GET';
-    console.log(
-      'url=',
-      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`
-    );
-    const getSize = await axios.get(
-      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`,
-      {
-        headers: signer.headers(requestPathForSize, methodForSize),
-      }
-    );
+//     //получить цену с учетом минимального шага сети
+//     const requestPathForSize = '/api/v2/symbols';
+//     const methodForSize = 'GET';
+//     console.log(
+//       'url=',
+//       `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`
+//     );
+//     const getSize = await axios.get(
+//       `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`,
+//       {
+//         headers: signer.headers(requestPathForSize, methodForSize),
+//       }
+//     );
 
-    console.log('getSize', getSize.data);
+//     console.log('getSize', getSize.data);
 
-    const baseIncrement = parseFloat(getSize.data.data.baseIncrement);
-    console.log('Минимальный шаг объёма:', baseIncrement);
+//     const baseIncrement = parseFloat(getSize.data.data.baseIncrement);
+//     console.log('Минимальный шаг объёма:', baseIncrement);
 
-    const amountWithStep = (
-      Math.floor(amount / baseIncrement) * baseIncrement
-    ).toFixed(6);
-    console.log('новая цена:', amountWithStep);
-    console.log('amount=', amount);
+//     const amountWithStep = (
+//       Math.floor(amount / baseIncrement) * baseIncrement
+//     ).toFixed(6);
+//     console.log('новая цена:', amountWithStep);
+//     console.log('amount=', amount);
 
-    const requestPath = '/api/v1/hf/orders';
-    const method = 'POST';
+//     const requestPath = '/api/v1/hf/orders';
+//     const method = 'POST';
 
-    const orderBody = {
-      type: 'market',
-      symbol: `${coin1}-${coin2}`,
-      side: type,
-      size: amountWithStep,
-      clientOid: clientOid,
-      remark: 'order remarks',
-    };
+//     const orderBody = {
+//       type: 'market',
+//       symbol: `${coin1}-${coin2}`,
+//       side: type,
+//       size: amountWithStep,
+//       clientOid: clientOid,
+//       remark: 'order remarks',
+//     };
 
-    console.log('orderBody=', orderBody);
+//     console.log('orderBody=', orderBody);
 
-    const response = await axios.post(
-      `https://api.kucoin.com${requestPath}`,
-      orderBody,
-      {
-        headers: signer.headers(requestPath, method, orderBody),
-      }
-    );
+//     const response = await axios.post(
+//       `https://api.kucoin.com${requestPath}`,
+//       orderBody,
+//       {
+//         headers: signer.headers(requestPath, method, orderBody),
+//       }
+//     );
 
-    // Optional: check KuCoin API response code
-    if (response.data.code !== '200000') {
-      console.error('Ошибка от KuCoin:', response.data);
-      return res.status(400).json({ error: response.data });
-    } else {
-      console.log(response.data);
-      return {
-        orderId: response.data.data.orderId,
-        status: 'ok',
-        amountWithStep: amountWithStep,
-      };
-    }
-  } catch (err) {
-    console.error('Ошибка сервера:', err.message || err);
-    res.status(500).json({
-      message: 'Ошибка сервера',
-      error: err?.response?.data || err.message,
-    });
-  }
-}
+//     // Optional: check KuCoin API response code
+//     if (response.data.code !== '200000') {
+//       console.error('Ошибка от KuCoin:', response.data);
+//       return res.status(400).json({ error: response.data });
+//     } else {
+//       console.log(response.data);
+//       return {
+//         orderId: response.data.data.orderId,
+//         status: 'ok',
+//         amountWithStep: amountWithStep,
+//       };
+//     }
+//   } catch (err) {
+//     console.error('Ошибка сервера:', err.message || err);
+//     res.status(500).json({
+//       message: 'Ошибка сервера',
+//       error: err?.response?.data || err.message,
+//     });
+//   }
+// }
 
 //проверить, выполнен ли ORDER на бирже
 async function checkOrderExecution(
@@ -1425,6 +1489,179 @@ async function transferInStock(coin, amount) {
     }
   } catch (err) {
     console.error('Ошибка сервера:', err.message, err?.response?.data || err);
+    res.status(500).json({
+      message: 'Ошибка сервера',
+      error: err?.response?.data || err.message,
+    });
+  }
+}
+
+
+
+// получение стоимости валютной пары
+async function getPrice(pair) {
+  try {
+    const response = await axios.get(
+      `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${pair}`
+    );
+
+    if (!response) {
+      return { statusFn: 'notOk' };
+    }
+
+    return { statusFn: 'ok', price: response.data.data.price };
+  } catch (err) {
+    console.log(err);
+    res.json({
+      message: 'ошибка сервера',
+    });
+  }
+}
+
+
+
+
+async function prePlaceOrder(coin1short,coin2short,type,amountBeReceivedByStock,id){
+  
+    const placeOrderFunction = await placeOrder(
+        coin1short,
+        coin2short,
+        type,
+        amountBeReceivedByStock
+  );
+
+  if (placeOrderFunction.status === 'ok') {
+    await RqstStockLimitOrderModel.findOneAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          order_id: placeOrderFunction.orderId,
+          status: 'orderPlaced',
+          amountAccordingBaseIncrement: placeOrderFunction.amountWithStep,
+        },
+      },
+      { new: true }
+    );
+
+    console.log('ордер размещен на бирже')
+  }
+}
+
+
+//разместить order на бирже
+async function placeOrder(coin1, coin2, type, amount) {
+  try {
+
+
+    class KcSigner {
+      constructor(apiKey, apiSecret, apiPassphrase) {
+        this.apiKey = apiKey || '';
+        this.apiSecret = apiSecret || '';
+        this.apiPassphrase = apiPassphrase || '';
+
+        if (apiPassphrase && apiSecret) {
+          this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
+        }
+
+        if (!apiKey || !apiSecret || !apiPassphrase) {
+          console.warn('API credentials are missing. Access will likely fail.');
+        }
+      }
+
+      sign(plain, key) {
+        return crypto.createHmac('sha256', key).update(plain).digest('base64');
+      }
+
+      headers(requestPath, method = 'POST', body = '') {
+        const timestamp = Date.now().toString();
+        const bodyString =
+          typeof body === 'object' ? JSON.stringify(body) : body;
+        const prehash =
+          timestamp + method.toUpperCase() + requestPath + bodyString;
+        const signature = this.sign(prehash, this.apiSecret);
+
+        return {
+          'KC-API-KEY': this.apiKey,
+          'KC-API-PASSPHRASE': this.apiPassphrase,
+          'KC-API-TIMESTAMP': timestamp,
+          'KC-API-SIGN': signature,
+          'KC-API-KEY-VERSION': '3',
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
+    // Load API credentials from environment
+    const key = process.env.KUCOIN_KEY || '';
+    const secret = process.env.KUCOIN_SECRET || '';
+    const passphrase = process.env.KUCOIN_PASSPHRASE || '';
+
+    const signer = new KcSigner(key, secret, passphrase);
+
+    // Generate a unique client order ID
+    const clientOid = crypto.randomUUID();
+
+    //получить цену с учетом минимального шага сети
+    const requestPathForSize = '/api/v2/symbols';
+    const methodForSize = 'GET';
+    console.log(
+      'url=',
+      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`
+    );
+    const getSize = await axios.get(
+      `https://api.kucoin.com${requestPathForSize}/${coin1}-${coin2}`,
+      {
+        headers: signer.headers(requestPathForSize, methodForSize),
+      }
+    );
+
+    console.log('getSize', getSize.data);
+
+    const baseIncrement = parseFloat(getSize.data.data.baseIncrement);
+    console.log('Минимальный шаг объёма:', baseIncrement);
+
+    const amountWithStep = (
+      Math.floor(amount / baseIncrement) * baseIncrement
+    ).toFixed(6);
+    console.log('новая цена:', amountWithStep);
+    console.log('amount=', amount);
+
+    const requestPath = '/api/v1/hf/orders';
+    const method = 'POST';
+
+    const orderBody = {
+      type: 'market',
+      symbol: `${coin1}-${coin2}`,
+      side: type,
+      size: amountWithStep,
+      clientOid: clientOid,
+      remark: 'order remarks',
+    };
+
+    console.log('orderBody=', orderBody);
+
+    const response = await axios.post(
+      `https://api.kucoin.com${requestPath}`,
+      orderBody,
+      {
+        headers: signer.headers(requestPath, method, orderBody),
+      }
+    );
+
+    // Optional: check KuCoin API response code
+    if (response.data.code !== '200000') {
+      console.error('Ошибка от KuCoin:', response.data);
+      return res.status(400).json({ error: response.data });
+    } else {
+      console.log(response.data);
+      return {
+        orderId: response.data.data.orderId,
+        status: 'ok',
+        amountWithStep: amountWithStep,
+      };
+    }
+  } catch (err) {
+    console.error('Ошибка сервера:', err.message || err);
     res.status(500).json({
       message: 'Ошибка сервера',
       error: err?.response?.data || err.message,
