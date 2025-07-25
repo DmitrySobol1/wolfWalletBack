@@ -1074,11 +1074,18 @@ app.get('/api/get_my_payin', async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .lean();
+    
+      const stockOperationsLimit = await RqstStockLimitOrderModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
 
     if (
-      (!payins && !transfers && !exchange && !stockOperations) ||
-      (payins.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length===0)
+      (!payins && !transfers && !exchange && !stockOperations && !stockOperationsLimit) ||
+      (payins.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length===0 && stockOperationsLimit.length===0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
@@ -1152,6 +1159,23 @@ app.get('/api/get_my_payin', async (req, res) => {
         forSort: item.updatedAt,
       };
     });
+     
+    const processedStockOperationsLimit = stockOperationsLimit.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.type == 'buy' ? item.coin1full : item.coin2full,
+        qty:  item.amountSentBackToNp,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        type: 'stockLimit',
+        forSort: item.updatedAt,
+      };
+    });
 
 
 
@@ -1159,7 +1183,8 @@ app.get('/api/get_my_payin', async (req, res) => {
       ...processedPayins,
       ...processedTransfers,
       ...processedExchanges,
-      ...processedStockOperations
+      ...processedStockOperations,
+      ...processedStockOperationsLimit
     ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);
@@ -1224,12 +1249,19 @@ app.get('/api/get_my_payout', async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .lean();
+  
+      const stockOperationsLimit = await RqstStockLimitOrderModel.find({
+      status: 'done',
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
 
 
     if (
-      (!payouts && !transfers && !exchange && !stockOperations) ||
-      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length === 0)
+      (!payouts && !transfers && !exchange && !stockOperations && !stockOperationsLimit) ||
+      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length === 0 && stockOperationsLimit.length === 0)
     ) {
       return res.status(200).json({ status: 'no' });
     }
@@ -1305,6 +1337,23 @@ app.get('/api/get_my_payout', async (req, res) => {
         forSort: item.updatedAt,
       };
     });
+    
+    const processedStockOperationsLimit = stockOperationsLimit.map((item) => {
+      const date = new Date(item.updatedAt);
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+
+      return {
+        coin: item.type == 'buy' ? item.coin2full : item.coin1full,
+        qty:  item.amount,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+        type: 'stockLimit',
+        forSort: item.updatedAt,
+      };
+    });
 
 
 
@@ -1312,7 +1361,8 @@ app.get('/api/get_my_payout', async (req, res) => {
       ...processedPayouts,
       ...processedTransfers,
       ...processedExchanges,
-      ...processedStockOperations
+      ...processedStockOperations,
+      ...processedStockOperationsLimit
     ].sort((a, b) => b.forSort - a.forSort);
 
     console.log('total', total);
@@ -2452,39 +2502,21 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .lean();
+    
+    const limitOrders = await RqstStockLimitOrderModel.find({
+      status: { $ne: 'done' },
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
-    // const transfers = await RqstTransferToOtherUserModel.find({
-    //   statusAll: 'finished',
-    //   toUserTlgid: req.query.tlgid,
-    // })
-    //   .sort({ updatedAt: -1 })
-    //   .lean();
 
-    if (!marketOrders || marketOrders.length === 0) {
+    if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
       return res.status(200).json({ status: 'no' });
     }
 
-    // const months = [
-    //   'янв',
-    //   'фев',
-    //   'мар',
-    //   'апр',
-    //   'мая',
-    //   'июн',
-    //   'июл',
-    //   'авг',
-    //   'сен',
-    //   'окт',
-    //   'ноя',
-    //   'дек',
-    // ];
 
     const processedMarketOrders = marketOrders.map((item) => {
-      // const date = new Date(item.updatedAt);
-      // const day = date.getDate();
-      // const month = months[date.getMonth()];
-      // const hours = date.getHours().toString().padStart(2, '0');
-      // const minutes = date.getMinutes().toString().padStart(2, '0');
 
       const type = {
         ru: 'маркет ордер',
@@ -2508,7 +2540,6 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
         };
       }
 
-
       if (item.type == 'sell') {
         infoText = {
           ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
@@ -2518,21 +2549,45 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
       }
 
 
-      // if (item.type == 'buy') {
-      //   infoText = {
-      //     ru: `покупка ${item.amount} ${item.coin1full} за ${item.coin2full} `,
-      //     en: `buying ${item.amount} ${item.coin1full} for ${item.coin2full}`,
-      //     de: `kauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
-      //   };
-      // }
+      return {
+        status: statusText,
+        type: type,
+        info : infoText
+      };
+    });
+   
+    const processedLimittOrders = limitOrders.map((item) => {
 
-      // if (item.type == 'sell') {
-      //   infoText = {
-      //     ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
-      //     en: `selling ${item.amount} ${item.coin1full} for ${item.coin2full}`,
-      //     de: `verkauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
-      //   };
-      // }
+      const type = {
+        ru: 'лимитный ордер',
+        en: 'limit order',
+        de: 'limit order',
+      };
+
+      const statusText = {
+        ru: 'в работе',
+        en: 'in progress',
+        de: 'im gange',
+      };
+
+      let infoText = {};
+
+      if (item.type == 'buy') {
+        infoText = {
+          ru: `покупка ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
+          en: `buying ${item.coin1full} per price ${item.price} ${item.coin2full}`,
+          de: `kauf ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
+        };
+      }
+
+      if (item.type == 'sell') {
+        infoText = {
+          ru: `продажа ${item.amount} ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
+          en: `selling ${item.amount} ${item.coin1full} per price ${item.price} ${item.coin2full}`,
+          de: `verkauf ${item.amount} ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
+        };
+      }
+
 
       return {
         status: statusText,
@@ -2541,25 +2596,11 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
       };
     });
 
-    // const processedTransfers = transfers.map((item) => {
-    //   const date = new Date(item.updatedAt);
-    //   const day = date.getDate();
-    //   const month = months[date.getMonth()];
-    //   const hours = date.getHours().toString().padStart(2, '0');
-    //   const minutes = date.getMinutes().toString().padStart(2, '0');
-
-    //   return {
-    //     coin: item.coin,
-    //     qty: item.qtyToTransfer,
-    //     formattedDate: `${day} ${month} ${hours}:${minutes}`,
-    //     type: 'transfer',
-    //     forSort: item.updatedAt,
-    //   };
-    // });
+   
 
     const total = [
       ...processedMarketOrders,
-      // ...processedTransfers,
+      ...processedLimittOrders,
     ];
 
     console.log('total', total);
@@ -2601,39 +2642,23 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .lean();
+    
+      const limitOrders = await RqstStockLimitOrderModel.find({
+      status:'done' ,
+      tlgid: req.query.tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
-    // const transfers = await RqstTransferToOtherUserModel.find({
-    //   statusAll: 'finished',
-    //   toUserTlgid: req.query.tlgid,
-    // })
-    //   .sort({ updatedAt: -1 })
-    //   .lean();
+   
 
-    if (!marketOrders || marketOrders.length === 0) {
+    if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
       return res.status(200).json({ status: 'no' });
     }
 
-    const months = [
-      'янв',
-      'фев',
-      'мар',
-      'апр',
-      'мая',
-      'июн',
-      'июл',
-      'авг',
-      'сен',
-      'окт',
-      'ноя',
-      'дек',
-    ];
+   
 
     const processedMarketOrders = marketOrders.map((item) => {
-      // const date = new Date(item.updatedAt);
-      // const day = date.getDate();
-      // const month = months[date.getMonth()];
-      // const hours = date.getHours().toString().padStart(2, '0');
-      // const minutes = date.getMinutes().toString().padStart(2, '0');
 
       const date = new Date(item.updatedAt);
       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
@@ -2674,26 +2699,54 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
       };
     });
+    
+    const processedLimitOrders = limitOrders.map((item) => {
 
-    // const processedTransfers = transfers.map((item) => {
-    //   const date = new Date(item.updatedAt);
-    //   const day = date.getDate();
-    //   const month = months[date.getMonth()];
-    //   const hours = date.getHours().toString().padStart(2, '0');
-    //   const minutes = date.getMinutes().toString().padStart(2, '0');
+      const date = new Date(item.updatedAt);
+      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
 
-    //   return {
-    //     coin: item.coin,
-    //     qty: item.qtyToTransfer,
-    //     formattedDate: `${day} ${month} ${hours}:${minutes}`,
-    //     type: 'transfer',
-    //     forSort: item.updatedAt,
-    //   };
-    // });
+      const type = {
+        ru: 'лимитный ордер',
+        en: 'limit order',
+        de: 'limit order',
+      };
+
+
+      let infoText = {};
+
+      if (item.type == 'buy') {
+        infoText = {
+          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
+        };
+      }
+
+
+      if (item.type == 'sell') {
+        infoText = {
+          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
+          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
+          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
+        };
+      }
+
+      return {
+        type: type,
+        info: infoText,
+        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+      };
+    });
+
+    
 
     const total = [
       ...processedMarketOrders,
-      // ...processedTransfers,
+      ...processedLimitOrders,
     ];
 
     console.log('total', total);
