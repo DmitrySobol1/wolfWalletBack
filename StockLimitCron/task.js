@@ -1,15 +1,15 @@
 //FIXME:
 // для тестов
-// import dotenv from 'dotenv';
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 //FIXME:
 //для прода
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
+// import dotenv from 'dotenv';
+// dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 // TODO: убрат в проде команду
-// executeCheckTask();
+executeCheckTask();
 
 // TODO: убрать файл env из этой папки перед заливкой на сервер
 // TODO: нужно ли убирать из этого файла const app и прочее?
@@ -47,9 +47,7 @@ export async function executeCheckTask() {
 
   const recordsNew = await RqstStockLimitOrderModel.find({
     status: {
-      $in: ['new', 'CoinReceivedByStock' ],
-    //   TODO: после тестов оставить полную строку
-    //   $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockTrtFromTradeToMain','stockSentCoinToNp', ],
+      $in: ['new', 'CoinReceivedByStock', 'orderPlaced', 'stockTrtFromTradeToMain','stockSentCoinToNp', ],
     },
   }).exec();
 
@@ -175,7 +173,9 @@ export async function executeCheckTask() {
 
         const token = await getBearerToken();
 
-       
+      //   console.log ('WE ARE HERE')
+
+      //  return 
 
         const requestData = {
           ipn_callback_url: process.env.WEBHOOKADRESS_FORSTOCK_LIMIT, 
@@ -241,7 +241,7 @@ export async function executeCheckTask() {
           try {
             // поиск активных лимит ордеров
             const activeRqsts = await RqstStockLimitOrderModel.find({
-              status: 'receivedByStock',
+              status: 'CoinReceivedByStock',
             }).exec();
         
             if (!activeRqsts || activeRqsts.length === 0) {
@@ -399,7 +399,7 @@ export async function executeCheckTask() {
       console.log('step 12.2  | результат трансфера с Trade Main=',tranferInStockresult)
 
 
-      await RqstStockMarketOrderModel.findOneAndUpdate(
+      await RqstStockLimitOrderModel.findOneAndUpdate(
         { _id: item._id },
         {
           $set: {
@@ -447,7 +447,7 @@ export async function executeCheckTask() {
       const adresssValue = getNpAdressResult.adress;
       const idValue = getNpAdressResult.uid;
 
-      await RqstStockMarketOrderModel.findOneAndUpdate(
+      await RqstStockLimitOrderModel.findOneAndUpdate(
         { _id: item._id },
         { $set: { trtCoinFromStockToNP_np_id: idValue } },
         { new: true }
@@ -468,7 +468,7 @@ export async function executeCheckTask() {
         chainToSendToNp
       );
 
-      await RqstStockMarketOrderModel.findOneAndUpdate(
+      await RqstStockLimitOrderModel.findOneAndUpdate(
         { _id: item._id },
         {
           $set: {
@@ -546,7 +546,7 @@ export async function executeCheckTask() {
                 response.data.result
               );
 
-              await RqstStockMarketOrderModel.findOneAndUpdate(
+              await RqstStockLimitOrderModel.findOneAndUpdate(
                 { _id: item._id },
                 {
                   $set: {
@@ -1193,7 +1193,7 @@ async function createPayAdress(token, coin, minAmount, nowpaymentid) {
       sub_partner_id: String(nowpaymentid),
       is_fixed_rate: false,
       is_fee_paid_by_user: false,
-      ipn_callback_url: process.env.WEBHOOKADRESS_FROMSTOCKTOUSER,
+      ipn_callback_url: process.env.WEBHOOKADRESS_FROMSTOCKTOUSER_LIMIT,
     };
 
     // 3. Выполнение запроса с обработкой ошибок

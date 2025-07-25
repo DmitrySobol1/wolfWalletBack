@@ -2402,7 +2402,7 @@ app.post('/api/webhook_fromStockToUser', async (req, res) => {
       res.status(200).json({ status: 'success' });
       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
 
-      await processWebhookTrtFromStockToUser(payload);
+      // await processWebhookTrtFromStockToUser(payload);
     } catch (processError) {
       console.error('Ошибка обработки:', processError);
       res.status(500).json({ error: 'Processing failed' });
@@ -2414,27 +2414,27 @@ app.post('/api/webhook_fromStockToUser', async (req, res) => {
 });
 
 // функция обработки вывод средств (payout)
-async function processWebhookTrtFromStockToUser(payload) {
-  console.log('Обрабатываю:', payload);
+// async function processWebhookTrtFromStockToUser(payload) {
+//   console.log('Обрабатываю:', payload);
 
-  // const statusLowerLetter = payload.status.toLowerCase();
+//   // const statusLowerLetter = payload.status.toLowerCase();
 
-  // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-  //   { trtCoinFromStockToNP_np_id: payload.batch_withdrawal_id },
-  //   { $set: { status: statusLowerLetter } }
-  // );
+//   // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+//   //   { trtCoinFromStockToNP_np_id: payload.batch_withdrawal_id },
+//   //   { $set: { status: statusLowerLetter } }
+//   // );
 
-  console.log('Статус=', payload.payment_status.toLowerCase());
+//   console.log('Статус=', payload.payment_status.toLowerCase());
 
-  if (payload.payment_status.toLowerCase() === 'partially_paid') {
-    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-      { trtCoinFromStockToNP_np_id: payload.payment_id },
-      { $set: { status: 'done' } }
-    );
+//   if (payload.payment_status.toLowerCase() === 'partially_paid') {
+//     const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+//       { trtCoinFromStockToNP_np_id: payload.payment_id },
+//       { $set: { status: 'done' } }
+//     );
 
-    console.log('отправить юзеру сообщение, что бабки пришли с Stock');
-  }
-}
+//     console.log('отправить юзеру сообщение, что бабки пришли с Stock');
+//   }
+// }
 
 //найти мои открытые ордера
 app.get('/api/get_myOpenOrders', async (req, res) => {
@@ -2962,8 +2962,10 @@ app.post('/api/new_stockorder_limit', async (req, res) => {
       id_clientToMaster = response.data.result.id;
       errorText = 'ok';
       statusText = 'new';
+      console.log('CHECKING WRITE-OFF | ok')
     } else {
       errorText = 'ошибка при отправке с счета клиента на мастер счет';
+      console.log('CHECKING WRITE-OFF | not ok')
     }
 
     //записать инфо в БД
@@ -3106,6 +3108,95 @@ async function processWebhookStockLimit(payload) {
 }
 
 
+//FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FROMSTOCKTOUSER_LIMIT
+
+// для обработки "прихода денег с биржи на адрес пользователя"
+app.post('/api/webhook_fromStockToUser_limit', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Получен вебхук payout:', payload);
+
+    // 1. Проверяем обязательный заголовок
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      return res.status(400).json({ error: 'Missing signature header' });
+    }
+
+    // 2. Безопасная сортировка объекта
+    const safeSort = (obj) => {
+      const seen = new WeakSet();
+      const sort = (obj) => {
+        if (obj !== Object(obj)) return obj;
+        if (seen.has(obj)) return '[Circular]';
+        seen.add(obj);
+
+        return Object.keys(obj)
+          .sort()
+          .reduce((result, key) => {
+            result[key] = sort(obj[key]);
+            return result;
+          }, {});
+      };
+      return sort(obj);
+    };
+
+    // 3. Генерация и проверка подписи
+    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+    hmac.update(JSON.stringify(safeSort(payload)));
+    const expectedSignature = hmac.digest('hex');
+
+    // 4. Безопасное сравнение подписей
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(receivedSignature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      console.log('Неверная подпись');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+
+    console.log('Подписи совпадают');
+
+    // 5. Обработка вебхука (с обработкой ошибок)
+    try {
+      res.status(200).json({ status: 'success' });
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+
+      // await processWebhookTrtFromStockToUser_limit(payload);
+    } catch (processError) {
+      console.error('Ошибка обработки:', processError);
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  } catch (error) {
+    console.error('Ошибка обработки вебхука:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// функция обработки вывод средств (payout)
+// async function processWebhookTrtFromStockToUser_limit(payload) {
+//   console.log('Обрабатываю:', payload);
+
+//   // const statusLowerLetter = payload.status.toLowerCase();
+
+//   // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+//   //   { trtCoinFromStockToNP_np_id: payload.batch_withdrawal_id },
+//   //   { $set: { status: statusLowerLetter } }
+//   // );
+
+//   console.log('Статус=', payload.payment_status.toLowerCase());
+
+//   if (payload.payment_status.toLowerCase() === 'partially_paid') {
+//     const updatedItem = await RqstStockLimitOrderModel.findOneAndUpdate(
+//       { trtCoinFromStockToNP_np_id: payload.payment_id },
+//       { $set: { status: 'done' } }
+//     );
+
+//     console.log('отправить юзеру сообщение, что бабки пришли с Stock');
+//   }
+// }
 
 
 
