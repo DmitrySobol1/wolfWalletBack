@@ -289,7 +289,7 @@ export async function executeCheckTask() {
                   }
         
                   if (item.type == 'buy') {
-                    if (getPriceResult.price <= item.amount) {
+                    if (getPriceResult.price <= item.price) {
                       console.log(`ПОКУПКА: макс цена для покупки у клиента ${item.price} | совершаем покупку order id= ${item.id}`);
                       
                       // совершить покупку по цене биржи
