@@ -735,7 +735,7 @@ async function getOurComissionMarket() {
   try {
     
      const response = await ComissionStockModel.findOne({
-          coin: 'ourComissionMarket'
+          coin: 'ourComission'
         });
 
         const ourComission = response.qty;

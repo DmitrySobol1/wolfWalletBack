@@ -799,7 +799,7 @@ async function getOurComissionLimit() {
   try {
     
      const response = await ComissionStockModel.findOne({
-          coin: 'ourComissionLimit'
+          coin: 'ourComission'
         });
 
         const ourComission = response.qty;
