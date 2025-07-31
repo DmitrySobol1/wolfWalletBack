@@ -1,0 +1,114 @@
+import UserModel from '../models/user.js';
+import ComissionToPayoutModel from '../models/comissionToPayout.js';
+import ComissionToTransferModel from '../models/comissionToTransfer.js';
+import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
+import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
+import ComissionExchangeModel from '../models/comissionToExchange.js';
+import RqstPayInModel from '../models/rqstPayIn.js';
+import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
+import RqstExchangeSchemaModel from '../models/rqstExchange.js';
+import TradingPairsModel from '../models/tradingPairs.js';
+import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
+import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
+import StockAdressesModel from '../models/stockAdresses.js';
+import ComissionStockMarketModel from '../models/comissionStockMarket.js';
+import WorkingSocketModel from '../models/workingSocket.js';
+
+export async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
+  try {
+    const doc = new RqstPayInModel({
+      payment_id: params.payment_id,
+      payment_status: params.payment_status,
+      pay_amount: params.pay_amount,
+      price_currency: params.price_currency,
+      userIdAtNP: nowpaymentid,
+      amount_received: params.amount_received,
+      tlgid: tlgid,
+    });
+
+    const rqst = await doc.save();
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+export async function createRqstTrtFromuserToMain(data) {
+  try {
+    if (!data) {
+      return;
+    }
+
+    const {
+      transactionId,
+      coin,
+      sum,
+      nowpaymentid,
+      adress,
+      networkFees,
+      ourComission,
+      qtyToSend,
+      qtyForApiRqst,
+    } = data;
+
+    const rqst = new RqstTrtFromUserToMainModel({
+      transactionId,
+      coin,
+      sum,
+      status: 'new',
+      fromUserNP: nowpaymentid,
+      adress,
+      networkFees,
+      ourComission,
+      qtyToSend,
+      qtyForApiRqst,
+    });
+
+    if (!rqst) {
+      return;
+    }
+
+    await rqst.save();
+    return 'created';
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+
+
+
+
+export async function createRqstTransferToOtherUserModel(data) {
+  try {
+
+    if  (!data){
+      return
+    }
+
+    const {transactionId_comission, coin, sum, fromUserNP, adress, our_comission, tlgid, statusComission, qtyToTransfer } = data
+
+
+    const rqst = new RqstTransferToOtherUserModel({
+      transactionId_comission,
+      coin,
+      totalSum: sum,
+      fromUserNP,
+      toUserNP: adress,
+      ourComission: our_comission,
+      fromUserTlgid: tlgid,
+      statusComission,
+      statusAll: 'new',
+      transactionId_transferToUser: 0,
+      statusTransferToUser: '0',
+      qtyToTransfer,
+    });
+
+     
+    const item = await rqst.save();
+
+    console.log('step 3 ITEM=', item._id);
+    return { item_id: item._id.toString() };
+  } catch (err) {
+    console.log(err);
+  }
+}

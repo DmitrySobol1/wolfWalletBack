@@ -1,5 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
+
+import { walletController } from './page1 - wallet/wallet.controller.js'
+import { payinController } from './page1 - wallet/payin-page/payin.controller.js'
+import { payoutController } from './page1 - wallet/payout-page/payout.controller.js'
+import { transferController } from './page1 - wallet/transfer-page/transfer.controller.js'
+
 import UserModel from './models/user.js';
 import ComissionToPayoutModel from './models/comissionToPayout.js';
 import ComissionToTransferModel from './models/comissionToTransfer.js';
@@ -44,9 +50,20 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.get('/api', (req, res) => {
-  res.send('hello man 88');
-});
+
+// wallet page
+app.use('/api/wallet', walletController)
+
+// wallet > payin & payout pages & transfer
+app.use('/api/payin', payinController)
+app.use('/api/payout', payoutController)
+app.use('/api/transfer', transferController)
+
+
+
+
+
+
 
 // вход пользователя в аппку
 app.post('/api/enter', async (req, res) => {
@@ -75,31 +92,7 @@ app.post('/api/enter', async (req, res) => {
   }
 });
 
-app.get('/api/gettest', async (req, res) => {
-  try {
-    res.send('GET done from server');
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
-app.get('/api/gettest2', (req, res) => {
-  res.send('hello man 88');
-});
-
-app.post('/api/posttest', async (req, res) => {
-  try {
-    res.send('POST done from server');
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
 async function createNewUser(tlgid) {
   try {
@@ -122,149 +115,11 @@ async function createNewUser(tlgid) {
 }
 
 // получение баланса пользователя
-app.post('/api/get_user_balance', async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
-    const { ...userData } = user._doc;
 
-    const nowpaymentid = userData.nowpaymentid;
-    const language = userData.language;
 
-    const valute = userData.valute;
 
-    let symbol = '₽';
-    if (valute === 'usd') {
-      symbol = '$';
-    } else if (valute === 'eur') {
-      symbol = '€';
-    }
 
-    if (userData.nowpaymentid === 0) {
-      return res.json({
-        balance: 0,
-        language: language,
-        valute: valute,
-        symbol: symbol,
-      });
-      // return res.json({ balance: 0, language:language, valute:valute });
-    }
 
-    let cryptoPrices = await getCryptoPrices();
-
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
-
-    const userBalance = response.data.result.balances;
-
-    // Преобразовываем объект в массив объектов
-    const arrayOfUserBalance = Object.entries(userBalance).map(
-      ([key, value]) => ({
-        currency: key, // кладем ключ внутрь объекта
-        currencyToFindPrices: key, //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
-        ...value, // распаковываем остальные свойства
-      })
-    );
-
-    //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
-    arrayOfUserBalance.forEach((item) => {
-      if (item.currencyToFindPrices.includes('usdt')) {
-        item.currencyToFindPrices = 'usdt';
-      }
-    });
-
-    const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance.map((item) => {
-      // находим подходящий объект из cryptoPrices
-      const matchingPrice = cryptoPrices.find(
-        (price) =>
-          item.currencyToFindPrices.toLowerCase() === price.symbol.toLowerCase()
-      );
-
-      // возвращаем новый объект с необходимой информацией
-      return {
-        currency: item.currency,
-        amount: item.amount,
-        price_usd: matchingPrice?.price_usd ?? null, // если нет подходящей цены, ставим null
-      };
-    });
-
-    const userBalanceInUsd = arrayOfUserBalanceWithUsdPrice.reduce(
-      (accumulator, item) => {
-        return accumulator + item.amount * item.price_usd;
-      },
-      0
-    );
-
-    // получение курса доллара в валюте клиента
-    if (valute === 'usd') {
-      const roundedBalance = parseFloat(userBalanceInUsd.toFixed(2));
-      return res.json({
-        balance: roundedBalance,
-        valute: valute,
-        symbol: '$',
-        language: language,
-      });
-    } else if (valute === 'eur') {
-      const balance = await Convert(userBalanceInUsd).from('USD').to('EUR');
-      const roundedBalance = parseFloat(balance.toFixed(2));
-      return res.json({
-        balance: roundedBalance,
-        valute: valute,
-        symbol: '€',
-        language: language,
-      });
-    } else if (valute === 'rub') {
-      const balance = await Convert(userBalanceInUsd).from('USD').to('RUB');
-      const roundedBalance = parseFloat(balance.toFixed(2));
-      return res.json({
-        balance: roundedBalance,
-        valute: valute,
-        symbol: '₽',
-        language: language,
-      });
-    }
-
-    return res.json({ userBalanceInUsd: userBalanceInUsd });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
-
-// получение данных о стоимости крипты
-async function getCryptoPrices() {
-  const response = await axios.get('https://api.coinlore.net/api/tickers/');
-
-  return response.data.data;
-}
-
-// получение из nowpayments монет, одобренных в ЛК
-app.get('/api/get_available_coins', async (req, res) => {
-  try {
-    const response = await axios.get(
-      'https://api.nowpayments.io/v1/merchant/coins',
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
-
-    return res.json(response.data);
-  } catch (err) {
-    console.log(err);
-    res.json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
 // смена валюты в БД
 app.post('/api/change_valute', async (req, res) => {
@@ -286,127 +141,81 @@ app.post('/api/change_language', async (req, res) => {
   return res.json('OK');
 });
 
-// получение информации, чтобы вернуть адресс и мин сумму пополнения, создать ЛК юзера в NP ?
-app.post('/api/get_info_for_payinadress', async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
-    const { ...userData } = user._doc;
 
-    const token = await getTokenFromNowPayment();
 
-    if (userData.nowpaymentid === 0) {
-      const nowpaymentid = await createUserInNowPayment(token, req.body.tlgid);
+// async function getTokenFromNowPayment() {
+//   const response = await axios.post(
+//     'https://api.nowpayments.io/v1/auth',
+//     {
+//       email: process.env.NOWPAYMENTSEMAIL,
+//       password: process.env.NOWPAYMENTSPASSWD,
+//     },
+//     {
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//     }
+//   );
 
-      //записать nowpaymentid в БД
-      const updatedUser = await UserModel.findOneAndUpdate(
-        { tlgid: req.body.tlgid },
-        { $set: { nowpaymentid: nowpaymentid } },
-        { new: true } // Вернуть обновленную запись
-      );
+//   return response.data.token;
+// }
 
-      const { ...userData } = updatedUser._doc;
-    }
+// async function getMinAmountForDeposit(coin) {
+//   const response = await axios.get(
+//     `https://api.nowpayments.io/v1/min-amount?currency_from=${coin}&fiat_equivalent=usd&is_fixed_rate=false&is_fee_paid_by_user=false`,
+//     {
+//       headers: {
+//         'x-api-key': process.env.NOWPAYMENTSAPI,
+//       },
+//     }
+//   );
+//   // console.log('MIN=',response.data)
+//   return response.data.min_amount;
+// }
 
-    const minAmount = await getMinAmountForDeposit(req.body.coin);
+// async function createUserInNowPayment(token, tlgid) {
+//   try {
+//     // 1. Валидация входных параметров
+//     if (!token || typeof token !== 'string') {
+//       throw new Error('Invalid or missing authentication token');
+//     }
 
-    //чтобы исключить колебание мин кол-ва, пока обрабатывается запрос
-    const minAmountPlus5Percent = minAmount + minAmount * 0.05;
+//     if (!tlgid || (typeof tlgid !== 'string' && typeof tlgid !== 'number')) {
+//       throw new Error('Invalid tlgid format');
+//     }
 
-    const payAdress = await createPayAdress(
-      token,
-      req.body.coin,
-      minAmountPlus5Percent,
-      userData.nowpaymentid,
-      req.body.tlgid
-    );
+//     // 2. Формирование тела запроса (уточните правильную структуру в API-документации)
+//     const requestData = {
+//       name: String(tlgid),
+//     };
 
-    const objToFront = {
-      minAmount,
-      payAdress,
-    };
+//     // 3. Выполнение запроса с обработкой ошибок
+//     const response = await axios.post(
+//       'https://api.nowpayments.io/v1/sub-partner/balance',
+//       requestData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json',
+//         },
+//         timeout: 10000, // 10 секунд таймаут
+//       }
+//     );
 
-    return res.json(objToFront);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     // 4. Проверка структуры ответа
+//     if (!response.data?.result?.id) {
+//       throw new Error('Invalid response structure from NowPayments API');
+//     }
 
-async function getTokenFromNowPayment() {
-  const response = await axios.post(
-    'https://api.nowpayments.io/v1/auth',
-    {
-      email: process.env.NOWPAYMENTSEMAIL,
-      password: process.env.NOWPAYMENTSPASSWD,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  return response.data.token;
-}
-
-async function getMinAmountForDeposit(coin) {
-  const response = await axios.get(
-    `https://api.nowpayments.io/v1/min-amount?currency_from=${coin}&fiat_equivalent=usd&is_fixed_rate=false&is_fee_paid_by_user=false`,
-    {
-      headers: {
-        'x-api-key': process.env.NOWPAYMENTSAPI,
-      },
-    }
-  );
-  // console.log('MIN=',response.data)
-  return response.data.min_amount;
-}
-
-async function createUserInNowPayment(token, tlgid) {
-  try {
-    // 1. Валидация входных параметров
-    if (!token || typeof token !== 'string') {
-      throw new Error('Invalid or missing authentication token');
-    }
-
-    if (!tlgid || (typeof tlgid !== 'string' && typeof tlgid !== 'number')) {
-      throw new Error('Invalid tlgid format');
-    }
-
-    // 2. Формирование тела запроса (уточните правильную структуру в API-документации)
-    const requestData = {
-      name: String(tlgid),
-    };
-
-    // 3. Выполнение запроса с обработкой ошибок
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/sub-partner/balance',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 секунд таймаут
-      }
-    );
-
-    // 4. Проверка структуры ответа
-    if (!response.data?.result?.id) {
-      throw new Error('Invalid response structure from NowPayments API');
-    }
-
-    return response.data.result.id;
-  } catch (error) {
-    console.error('Error in createUserInNowPayment:', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to create user: ${error.message}`);
-  }
-}
+//     return response.data.result.id;
+//   } catch (error) {
+//     console.error('Error in createUserInNowPayment:', {
+//       error: error.response?.data || error.message,
+//       status: error.response?.status,
+//     });
+//     throw new Error(`Failed to create user: ${error.message}`);
+//   }
+// }
 
 async function createPayAdress(token, coin, minAmount, nowpaymentid, tlgid) {
   try {
@@ -489,145 +298,25 @@ async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
   }
 }
 
-//TODO:
-// получение баланса юзера, для вывода в "пополнить" и на странице wallet tab активы
-app.get('/api/get_balance_for_pay_out', async (req, res) => {
-  try {
-    const tlgid = req.query.tlgid;
 
-    const user = await UserModel.findOne({ tlgid: tlgid });
-    const valute = user.valute;
 
-    // console.log('step 1');
-    // console.log('user=', user);
-    // console.log('valute=', valute);
-    // return res.json('ok1');
+// // проверка валидности адреса кошелька
+// app.post('/api/validate_adress', async (req, res) => {
+//   try {
+//     const validateResult = await validateAdress(req.body.adress, req.body.coin);
 
-    if (user) {
-      const nowpaymentid = user._doc.nowpaymentid;
-
-      let cryptoPrices = await getCryptoPrices();
-
-      // console.log('step 2');
-      // console.log('cryptoPrices=', cryptoPrices);
-      // return res.json('ok2');
-
-      const response = await axios.get(
-        `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
-        {
-          headers: {
-            'x-api-key': process.env.NOWPAYMENTSAPI,
-          },
-        }
-      );
-
-      const userBalance = response.data.result.balances;
-
-      // console.log('step 3');
-      // console.log('response=', response.data.result);
-      // return res.json('ok3');
-
-      // Преобразовываем объект в массив объектов
-      const arrayOfUserBalance = Object.entries(userBalance).map(
-        ([key, value]) => ({
-          currency: key, // кладем ключ внутрь объекта
-          currencyToFindPrices: key, //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
-          ...value, // распаковываем остальные свойства
-        })
-      );
-
-      //для того, чтобы все виды usdt (usdttrc,usdtton и т.д. ) приравнять просто к usdt
-      arrayOfUserBalance.forEach((item) => {
-        if (item.currencyToFindPrices.includes('usdt')) {
-          item.currencyToFindPrices = 'usdt';
-        }
-      });
-
-      // console.log('step 4');
-      // console.log('arrayOfUserBalance=', arrayOfUserBalance);
-      // return res.json('ok4');
-
-      let fiatKoefficient = 1;
-      let symbol = '$';
-      if (valute === 'eur') {
-        fiatKoefficient = await Convert(1).from('USD').to('EUR');
-        symbol = '€';
-      } else if (valute === 'rub') {
-        fiatKoefficient = await Convert(1).from('USD').to('RUB');
-        symbol = '₽';
-      }
-
-      const arrayOfUserBalanceWithUsdPrice = arrayOfUserBalance
-        .map((item) => {
-          const matchingPrice = cryptoPrices.find(
-            (price) =>
-              item.currencyToFindPrices.toLowerCase() ===
-              price.symbol.toLowerCase()
-          );
-
-          const amount = item.amount != null ? parseFloat(item.amount) : 0;
-          const priceUsd = parseFloat(matchingPrice?.price_usd) || 0;
-          const fiatK = parseFloat(fiatKoefficient) || 0;
-
-          // было 1e-20
-          const epsilon = 1e-20;
-
-          if (amount > 0 && Math.abs(amount - 2e-18) > epsilon) {
-            const priceAllCoinInUsd = (amount * priceUsd).toFixed(2);
-            const priceAllCoinInUserFiat = (priceAllCoinInUsd * fiatK).toFixed(
-              2
-            );
-
-            return {
-              currency: item.currency,
-              currencyForUse: item.currencyToFindPrices,
-              amount: amount,
-              price_usd: priceUsd,
-              priceAllCoinInUsd: priceAllCoinInUsd,
-              priceAllCoinInUserFiat: priceAllCoinInUserFiat,
-              symbol: symbol,
-            };
-          }
-          return null; // или return {};
-        })
-        .filter(Boolean); // Удаляет null/undefined из массива;
-
-      // console.log('step 5');
-      // console.log('arrayOfUserBalanceWithUsdPrice=', arrayOfUserBalanceWithUsdPrice);
-      // return res.json('ok5');
-      // =================
-
-      // TODO: проверить верность подсчета коэффициента
-
-      return res.json({ arrayOfUserBalanceWithUsdPrice });
-    } else {
-      console.log('такого нет');
-    }
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
-
-// проверка валидности адреса кошелька
-app.post('/api/validate_adress', async (req, res) => {
-  try {
-    const validateResult = await validateAdress(req.body.adress, req.body.coin);
-
-    if (validateResult === 'OK') {
-      return res.json(validateResult);
-    } else {
-      return res.json('not ok');
-    }
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     if (validateResult === 'OK') {
+//       return res.json(validateResult);
+//     } else {
+//       return res.json('not ok');
+//     }
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
 async function validateAdress(adress, coin) {
   try {
@@ -721,102 +410,102 @@ app.get('/api/get_comissionExchange', async (req, res) => {
   }
 });
 
-//создать запрос на вывод монет (перевод с юзер счета на мастер счет)
-app.post('/api/rqst_to_payout', async (req, res) => {
-  try {
-    const token = await getTokenFromNowPayment();
+// //создать запрос на вывод монет (перевод с юзер счета на мастер счет)
+// app.post('/api/rqst_to_payout', async (req, res) => {
+//   try {
+//     const token = await getTokenFromNowPayment();
 
-    // найти nowPayment id по тлг id
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+//     // найти nowPayment id по тлг id
+//     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
 
-    if (!user) {
-      return res.status(404).send('Пользователь не найден');
-    }
+//     if (!user) {
+//       return res.status(404).send('Пользователь не найден');
+//     }
 
-    const nowpaymentid = user._doc.nowpaymentid;
+//     const nowpaymentid = user._doc.nowpaymentid;
 
-    const requestData = {
-      currency: String(req.body.coin),
-      amount: Number(req.body.sum),
-      sub_partner_id: String(nowpaymentid),
-    };
+//     const requestData = {
+//       currency: String(req.body.coin),
+//       amount: Number(req.body.sum),
+//       sub_partner_id: String(nowpaymentid),
+//     };
 
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/sub-partner/write-off',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 секунд таймаут
-      }
-    );
+//     const response = await axios.post(
+//       'https://api.nowpayments.io/v1/sub-partner/write-off',
+//       requestData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json',
+//         },
+//         timeout: 10000, // 10 секунд таймаут
+//       }
+//     );
 
-    if (response.data.result.status === 'PROCESSING') {
-      const transactionId = response.data.result.id;
+//     if (response.data.result.status === 'PROCESSING') {
+//       const transactionId = response.data.result.id;
 
-      console.log('transactionId=', response.data.result);
+//       console.log('transactionId=', response.data.result);
 
-      const createRqst = await createRqstTrtFromuserToMain(
-        transactionId,
-        req.body.coin,
-        req.body.sum,
-        nowpaymentid,
-        req.body.adress,
-        req.body.networkFees,
-        req.body.ourComission,
-        req.body.qtyToSend,
-        req.body.qtyForApiRqst
-      );
+//       const createRqst = await createRqstTrtFromuserToMain(
+//         transactionId,
+//         req.body.coin,
+//         req.body.sum,
+//         nowpaymentid,
+//         req.body.adress,
+//         req.body.networkFees,
+//         req.body.ourComission,
+//         req.body.qtyToSend,
+//         req.body.qtyForApiRqst
+//       );
 
-      if (createRqst === 'created') {
-        console.log('createRqst=', createRqst);
-        return res.json({ status: 'OK' });
-      }
-    }
-  } catch (error) {
-    console.error('Error in createRqstTrtFromuserToMain', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
-  }
-});
+//       if (createRqst === 'created') {
+//         console.log('createRqst=', createRqst);
+//         return res.json({ status: 'OK' });
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Error in createRqstTrtFromuserToMain', {
+//       error: error.response?.data || error.message,
+//       status: error.response?.status,
+//     });
+//     throw new Error(`Error adress: ${error.message}`);
+//   }
+// });
 
-async function createRqstTrtFromuserToMain(
-  transactionId,
-  coin,
-  sum,
-  userIdAtNP,
-  adress,
-  networkFees,
-  ourComission,
-  qtyToSend,
-  qtyForApiRqst,
-  type
-) {
-  try {
-    const rqst = new RqstTrtFromUserToMainModel({
-      transactionId: transactionId,
-      coin: coin,
-      sum: sum,
-      status: 'new',
-      userIdAtNP: userIdAtNP,
-      adress: adress,
-      networkFees: networkFees,
-      ourComission: ourComission,
-      qtyToSend: qtyToSend,
-      qtyForApiRqst: qtyForApiRqst,
-      type: type,
-    });
+// async function createRqstTrtFromuserToMain(
+//   transactionId,
+//   coin,
+//   sum,
+//   userIdAtNP,
+//   adress,
+//   networkFees,
+//   ourComission,
+//   qtyToSend,
+//   qtyForApiRqst,
+//   type
+// ) {
+//   try {
+//     const rqst = new RqstTrtFromUserToMainModel({
+//       transactionId: transactionId,
+//       coin: coin,
+//       sum: sum,
+//       status: 'new',
+//       userIdAtNP: userIdAtNP,
+//       adress: adress,
+//       networkFees: networkFees,
+//       ourComission: ourComission,
+//       qtyToSend: qtyToSend,
+//       qtyForApiRqst: qtyForApiRqst,
+//       type: type,
+//     });
 
-    const user = await rqst.save();
-    return 'created';
-  } catch (err) {
-    console.log(err);
-  }
-}
+//     const user = await rqst.save();
+//     return 'created';
+//   } catch (err) {
+//     console.log(err);
+//   }
+// }
 
 // для обработки "вывода" средств
 app.post('/api/webhook', async (req, res) => {
@@ -1039,422 +728,251 @@ function sendTlgMessage(tlgid, language, type, textQtyCoins) {
     });
 }
 
-//статистика пополнения баланса
-app.get('/api/get_my_payin', async (req, res) => {
-  try {
-    if (!req.query.tlgid) {
-      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
-    }
+// //статистика пополнения баланса
+// app.get('/api/get_my_payin', async (req, res) => {
+//   try {
+//     if (!req.query.tlgid) {
+//       return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+//     }
 
-    const payins = await RqstPayInModel.find({
-      payment_status: 'finished',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const payins = await RqstPayInModel.find({
+//       payment_status: 'finished',
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
-    const transfers = await RqstTransferToOtherUserModel.find({
-      statusAll: 'finished',
-      toUserTlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const transfers = await RqstTransferToOtherUserModel.find({
+//       statusAll: 'finished',
+//       toUserTlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
-    const exchange = await RqstExchangeSchemaModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const exchange = await RqstExchangeSchemaModel.find({
+//       status: 'done',
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
 
-    const stockOperations = await RqstStockMarketOrderModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const stockOperations = await RqstStockMarketOrderModel.find({
+//       status: 'done',
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
     
-      const stockOperationsLimit = await RqstStockLimitOrderModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//       const stockOperationsLimit = await RqstStockLimitOrderModel.find({
+//       status: 'done',
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
 
-    if (
-      (!payins && !transfers && !exchange && !stockOperations && !stockOperationsLimit) ||
-      (payins.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length===0 && stockOperationsLimit.length===0)
-    ) {
-      return res.status(200).json({ status: 'no' });
-    }
+//     if (
+//       (!payins && !transfers && !exchange && !stockOperations && !stockOperationsLimit) ||
+//       (payins.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length===0 && stockOperationsLimit.length===0)
+//     ) {
+//       return res.status(200).json({ status: 'no' });
+//     }
 
 
-    const processedPayins = payins.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//     const processedPayins = payins.map((item) => {
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      return {
-        coin: item.price_currency,
-        qty: item.amount_received,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'payin',
-        forSort: item.updatedAt,
-      };
-    });
+//       return {
+//         coin: item.price_currency,
+//         qty: item.amount_received,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         type: 'payin',
+//         forSort: item.updatedAt,
+//       };
+//     });
 
-    const processedTransfers = transfers.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//     const processedTransfers = transfers.map((item) => {
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      return {
-        coin: item.coin,
-        qty: item.qtyToTransfer,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'transfer',
-        forSort: item.updatedAt,
-      };
-    });
+//       return {
+//         coin: item.coin,
+//         qty: item.qtyToTransfer,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         type: 'transfer',
+//         forSort: item.updatedAt,
+//       };
+//     });
 
-    const processedExchanges = exchange.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//     const processedExchanges = exchange.map((item) => {
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      return {
-        coin: item.coinTo,
-        qty: item.amountTo,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'exchange',
-        forSort: item.updatedAt,
-      };
-    });
+//       return {
+//         coin: item.coinTo,
+//         qty: item.amountTo,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         type: 'exchange',
+//         forSort: item.updatedAt,
+//       };
+//     });
 
 
-     const processedStockOperations = stockOperations.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//      const processedStockOperations = stockOperations.map((item) => {
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      return {
-        coin: item.type == 'buy' ? item.coin1full : item.coin2full,
-        qty:  item.amountSentBackToNp,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'stockMarket',
-        forSort: item.updatedAt,
-      };
-    });
+//       return {
+//         coin: item.type == 'buy' ? item.coin1full : item.coin2full,
+//         qty:  item.amountSentBackToNp,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         type: 'stockMarket',
+//         forSort: item.updatedAt,
+//       };
+//     });
      
-    const processedStockOperationsLimit = stockOperationsLimit.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//     const processedStockOperationsLimit = stockOperationsLimit.map((item) => {
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      return {
-        coin: item.type == 'buy' ? item.coin1full : item.coin2full,
-        qty:  item.amountSentBackToNp,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'stockLimit',
-        forSort: item.updatedAt,
-      };
-    });
-
-
-
-    const total = [
-      ...processedPayins,
-      ...processedTransfers,
-      ...processedExchanges,
-      ...processedStockOperations,
-      ...processedStockOperationsLimit
-    ].sort((a, b) => b.forSort - a.forSort);
-
-    console.log('total', total);
-
-    return res.status(200).json({
-      status: 'ok',
-      count: total.length,
-      data: total,
-    });
-    // return res.status(200).json({
-    //   status: 'ok',
-    //   count: processedPayins.length,
-    //   data: processedPayins,
-    // });
-  } catch (err) {
-    console.error('Ошибка в /api/get_my_payin:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
-
-//статистика вывода с баланса
-app.get('/api/get_my_payout', async (req, res) => {
-  try {
-    const tlgid = req.query.tlgid;
-
-    if (!tlgid) {
-      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
-    }
-
-    const user = await UserModel.findOne({ tlgid: tlgid });
-    const { ...userData } = user._doc;
-
-    const nowpaymentid = userData.nowpaymentid;
-
-    const payouts = await VerifiedPayoutsModel.find({
-      status: 'finished',
-      userIdAtNP: nowpaymentid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    const transfers = await RqstTransferToOtherUserModel.find({
-      statusAll: 'finished',
-      fromUserTlgid: tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    const exchange = await RqstExchangeSchemaModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    const stockOperations = await RqstStockMarketOrderModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-  
-      const stockOperationsLimit = await RqstStockLimitOrderModel.find({
-      status: 'done',
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//       return {
+//         coin: item.type == 'buy' ? item.coin1full : item.coin2full,
+//         qty:  item.amountSentBackToNp,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         type: 'stockLimit',
+//         forSort: item.updatedAt,
+//       };
+//     });
 
 
 
-    if (
-      (!payouts && !transfers && !exchange && !stockOperations && !stockOperationsLimit) ||
-      (payouts.length === 0 && transfers.length === 0 && exchange.length === 0 && stockOperations.length === 0 && stockOperationsLimit.length === 0)
-    ) {
-      return res.status(200).json({ status: 'no' });
-    }
+//     const total = [
+//       ...processedPayins,
+//       ...processedTransfers,
+//       ...processedExchanges,
+//       ...processedStockOperations,
+//       ...processedStockOperationsLimit
+//     ].sort((a, b) => b.forSort - a.forSort);
 
-   
-    const processedPayouts = payouts.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//     // console.log('total', total);
 
-
-      return {
-        coin: item.coin,
-        qty: item.qtyToSend,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'payout',
-        forSort: item.updatedAt,
-      };
-    });
-
-    const processedTransfers = transfers.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-
-
-      return {
-        coin: item.coin,
-        qty: item.qtyToTransfer,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'transfer',
-        forSort: item.updatedAt,
-      };
-    });
-
-    const processedExchanges = exchange.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-
-      return {
-        coin: item.coinFrom,
-        qty: item.amountFrom,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'exchange',
-        forSort: item.updatedAt,
-      };
-    });
-
-
-    const processedStockOperations = stockOperations.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-
-      return {
-        coin: item.type == 'buy' ? item.coin2full : item.coin1full,
-        qty:  item.amount,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'stockMarket',
-        forSort: item.updatedAt,
-      };
-    });
-    
-    const processedStockOperationsLimit = stockOperationsLimit.map((item) => {
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-
-      return {
-        coin: item.type == 'buy' ? item.coin2full : item.coin1full,
-        qty:  item.amount,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        type: 'stockLimit',
-        forSort: item.updatedAt,
-      };
-    });
+//     return res.status(200).json({
+//       status: 'ok',
+//       count: total.length,
+//       data: total,
+//     });
+//     // return res.status(200).json({
+//     //   status: 'ok',
+//     //   count: processedPayins.length,
+//     //   data: processedPayins,
+//     // });
+//   } catch (err) {
+//     console.error('Ошибка в /api/get_my_payin:', err);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Внутренняя ошибка сервера',
+//     });
+//   }
+// });
 
 
 
-    const total = [
-      ...processedPayouts,
-      ...processedTransfers,
-      ...processedExchanges,
-      ...processedStockOperations,
-      ...processedStockOperationsLimit
-    ].sort((a, b) => b.forSort - a.forSort);
+// //получить мин сумму для вывода и нашу комиссию
+// app.get('/api/get_info_for_payout', async (req, res) => {
+//   try {
+//     const response = await axios.get(
+//       `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
+//       {
+//         headers: {
+//           'x-api-key': process.env.NOWPAYMENTSAPI,
+//         },
+//       }
+//     );
 
-    console.log('total', total);
+//     let status = false;
 
-    return res.status(200).json({
-      status: 'ok',
-      count: total.length,
-      data: total,
-    });
-  } catch (err) {
-    console.error('Ошибка в /api/get_my_payout:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
+//     let minSumToWithdraw = 'not available';
+//     if (response.data && response.data.success === true) {
+//       minSumToWithdraw = response.data.result;
+//     }
 
-//получить мин сумму для вывода и нашу комиссию
-app.get('/api/get_info_for_payout', async (req, res) => {
-  try {
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
+//     let ourComission = 'not available';
+//     const comission = await ComissionToPayoutModel.findOne({
+//       coin: req.query.coin,
+//     });
+//     if (comission) {
+//       ourComission = Number(comission.qty);
+//     }
 
-    let status = false;
+//     if (
+//       minSumToWithdraw !== 'not available' &&
+//       ourComission !== 'not available'
+//     ) {
+//       status = true;
+//     }
 
-    let minSumToWithdraw = 'not available';
-    if (response.data && response.data.success === true) {
-      minSumToWithdraw = response.data.result;
-    }
+//     return res.json({
+//       minSumToWithdraw,
+//       ourComission,
+//       status,
+//       coin: req.query.coin,
+//     });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
-    let ourComission = 'not available';
-    const comission = await ComissionToPayoutModel.findOne({
-      coin: req.query.coin,
-    });
-    if (comission) {
-      ourComission = Number(comission.qty);
-    }
+// //получить комиссию сети за вывод монеты
+// app.get('/api/get_withdrawal_fee', async (req, res) => {
+//   try {
+//     const response = await axios.get(
+//       `https://api.nowpayments.io/v1/payout/fee?currency=${req.query.coin}&amount=${req.query.amount}`,
+//       {
+//         headers: {
+//           'x-api-key': process.env.NOWPAYMENTSAPI,
+//         },
+//       }
+//     );
 
-    if (
-      minSumToWithdraw !== 'not available' &&
-      ourComission !== 'not available'
-    ) {
-      status = true;
-    }
+//     let networkFees = false;
 
-    return res.json({
-      minSumToWithdraw,
-      ourComission,
-      status,
-      coin: req.query.coin,
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     if (response.data) {
+//       networkFees = response.data.fee;
+//     }
 
-//получить комиссию сети за вывод монеты
-app.get('/api/get_withdrawal_fee', async (req, res) => {
-  try {
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/payout/fee?currency=${req.query.coin}&amount=${req.query.amount}`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
-
-    let networkFees = false;
-
-    if (response.data) {
-      networkFees = response.data.fee;
-    }
-
-    return res.json({ networkFees,statusFn:'ok' });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     return res.json({ networkFees,statusFn:'ok' });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
 // получение инфо о nowpayment id + создать, если не существует
 app.post('/api/get_user_id', async (req, res) => {
@@ -1525,65 +1043,9 @@ app.post('/api/save_new_transfercomission', async (req, res) => {
   return res.json({ status: 'saved' });
 });
 
-//получить нашу комиссию за трансфер между пользователями
-app.get('/api/get_transfer_fee', async (req, res) => {
-  try {
-    const fees = await ComissionToTransferModel.findOne({
-      coin: req.query.coin,
-    });
 
-    const user = await UserModel.findOne({
-      tlgid: req.query.tlgid,
-    });
 
-    let selfNowpaymentid = 0;
-    if (user) {
-      selfNowpaymentid = user.nowpaymentid;
-    }
 
-    if (fees) {
-      const response = {
-        ...fees.toObject(),
-        selfNowpaymentid,
-        status: 'ok',
-      };
-
-      return res.json(response);
-    } else {
-      return res.status(404).json({
-        status: 'coin not found',
-      });
-    }
-  } catch (error) {
-    return res.status(500).json({
-      status: 'error',
-      message: 'ошибка сервера',
-    });
-  }
-});
-
-// проверка существует ли юзер
-app.post('/api/get_user', async (req, res) => {
-  try {
-    const token = await getTokenFromNowPayment();
-
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/sub-partner?id=${req.body.adress}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    return res.json({ count: response.data.count });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
 //создать запрос на трансфер другому юзеру
 app.post('/api/rqst_to_transfer', async (req, res) => {
@@ -2603,7 +2065,7 @@ app.get('/api/get_myOpenOrders', async (req, res) => {
       ...processedLimittOrders,
     ];
 
-    console.log('total', total);
+    // console.log('total', total);
 
     return res.status(200).json({
       statusFn: 'ok',
@@ -2751,7 +2213,7 @@ app.get('/api/get_myDoneOrders', async (req, res) => {
       ...processedLimitOrders,
     ].sort((a, b) => b.forSort - a.forSort);;
 
-    console.log('total', total);
+    // console.log('total', total);
 
     return res.status(200).json({
       statusFn: 'ok',
@@ -3260,7 +2722,11 @@ app.post('/api/webhook_fromStockToUser_limit', async (req, res) => {
 // БИРЖА ЛИМИТ ОРДЕР | FINISH
 
 
-
+// получение данных о стоимости крипты
+async function getCryptoPrices() {
+  const response = await axios.get('https://api.coinlore.net/api/tickers/');
+  return response.data.data;
+}
 
 
 app.listen(PORT, (err) => {
