@@ -167,7 +167,8 @@ export async function createVerifiedPayout(data) {
       networkFees,
       ourComission,
       qtyToSend,
-      qtyForApiRqst
+      qtyForApiRqst,
+      isSentMsg:false
     });
 
     if (!rqst) {

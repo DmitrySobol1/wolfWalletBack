@@ -48,6 +48,10 @@ const VerifiedPayoutsSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    isSentMsg: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     timestamps: true,

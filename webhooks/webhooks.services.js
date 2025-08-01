@@ -31,8 +31,8 @@ export async function processWebhookPayout(payload) {
 
     console.log('Статус=', statusLowerLetter);
 
-    // если статус ==finished, то шлем юзеру сообщение
-    if (statusLowerLetter === 'finished') {
+    // если статус ==finished и сообщение еще не отправлено, то шлем юзеру сообщение
+    if (statusLowerLetter === 'finished' && updatedItem.isSentMsg == false) {
       const foundUser = await UserModel.findOne({
         nowpaymentid: updatedItem.userIdAtNP,
       });
@@ -40,6 +40,12 @@ export async function processWebhookPayout(payload) {
       if (!foundUser) {
         throw new Error('не найден юзер в БД UserModel ');
       }
+
+      // меняем статус, что сообщение отправили
+    const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
+      { batch_withdrawal_id: payload.batch_withdrawal_id },
+      { $set: { isSentMsg: true } }
+    );
 
       const { language, tlgid } = foundUser;
       const { currency, amount, fee } = payload;
