@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import axios from 'axios';
 
-import dotenv from 'dotenv';
-dotenv.config();
+
 
 const router = Router();
 
@@ -64,9 +63,9 @@ router.post('/webhook', async (req, res) => {
     
     
     // 5. Обработка вебхука (с обработкой ошибок)
-    const process = await processWebhookPayout(payload);
+    const processWH = await processWebhookPayout(payload);
     
-    if (!process || process.status != 'ok') {
+    if (!processWH || processWH.status != 'ok') {
         throw new Error('ошибка в функции processWebhookPayout ');
     }
     
