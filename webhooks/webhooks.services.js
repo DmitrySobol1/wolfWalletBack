@@ -55,11 +55,10 @@ export async function processWebhookPayout(payload) {
         textToSendUser
       );
 
-      if (!tlgResponse || !tlgResponse.status != 'ok') {
+      if (tlgResponse.status != 'ok') {
         throw new Error('ошибка в функции sendTlgMessage ');
       }
 
-      return {status: 'ok'}
 
     }
   } catch (error) {
