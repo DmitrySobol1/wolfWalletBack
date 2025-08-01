@@ -15,6 +15,8 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
+import axios from 'axios';
+
 import mongoose from 'mongoose';
 import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
 
@@ -46,7 +48,7 @@ export async function executeCheckTask() {
 
      
       const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
-      console.log('baseUrl=', tokenT ) 
+      console.log('baseUrl=', baseurl ) 
 
         const params = `?chat_id=412697670&text=Заголовок%0AПодзаголовок`;
         const url = baseurl + params;
