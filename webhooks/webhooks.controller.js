@@ -63,12 +63,8 @@ router.post('/webhook', async (req, res) => {
     
     
     // 5. Обработка вебхука (с обработкой ошибок)
-    const processWH = await processWebhookPayout(payload);
+    await processWebhookPayout(payload);
     
-    if (processWH?.status == 'ok') {
-        console.log('платеж совершен')
-    
-    }
     
 
   } catch (error) {
