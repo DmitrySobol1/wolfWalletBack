@@ -72,7 +72,8 @@ async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   try {
     const { title, text } = TEXTS[type]?.[language];
     const fullText = text + textQtyCoins;
-    const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+    const token = process.env.BOT_TOKEN
+    const baseurl = `https://api.telegram.org/bot${token}/sendMessage`;
     const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
     const url = baseurl + params;
 

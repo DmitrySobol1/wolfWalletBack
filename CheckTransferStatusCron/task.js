@@ -37,6 +37,25 @@ export async function executeCheckTask() {
   try {
     console.log('Начинаю cron1: transfer на мастер счет...');
 
+
+      
+      console.log(' проверка работы телеги')
+  
+      const tokenT = process.env.BOT_TOKEN
+      console.log('токен из отдельной переменной=', tokenT ) 
+
+     
+      const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+      console.log('baseUrl=', tokenT ) 
+
+        const params = `?chat_id=412697670&text=Заголовок%0AПодзаголовок`;
+        const url = baseurl + params;
+    
+        const response = await axios.get(url);
+
+    return
+
+
     const records = await RqstTrtFromUserToMainModel.find({
       status: 'new',
     }).exec();
