@@ -1,5 +1,6 @@
-import { VerifiedPayoutsModel } from '../models/verifiedPayouts.js';
-import { UserModel } from '../models/user.js';
+import  VerifiedPayoutsModel  from '../models/verifiedPayouts.js';
+import  UserModel  from '../models/user.js';
+
 
 import { TEXTS } from '../texts.js';
 
