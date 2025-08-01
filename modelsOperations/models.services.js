@@ -112,3 +112,75 @@ export async function createRqstTransferToOtherUserModel(data) {
     console.log(err);
   }
 }
+
+
+
+export async function createRqstExchange(data) {
+  try {
+
+    const {id_clientToMaster, tlgid, nowpaymentid, amount, coinFrom, convertedAmount, coinTo, nowpaymentComission, ourComission, language }  = data
+
+    const rqst = new RqstExchangeSchemaModel({
+      id_clientToMaster,
+      id_exchange: 0,
+      id_masterToClient: 0,
+      status: 'new',
+      tlgid,
+      userNP: nowpaymentid,
+      amountFrom: amount,
+      coinFrom,
+      amountTo: convertedAmount,
+      coinTo,
+      nowpaymentComission,
+      ourComission: ourComission,
+      language,
+    });
+
+    if (!rqst) {
+      return;
+    }
+
+    await rqst.save();
+    return 'created';
+  } catch (err) {
+    console.log(err);
+    return
+  }
+}
+
+
+
+// создать новый объект в verified payouts
+export async function createVerifiedPayout(data) {
+  try {
+
+    const {payout_id, batch_withdrawal_id, coin, sum, status, userIdAtNP, adress, networkFees, ourComission, qtyToSend, qtyForApiRqst }  = data
+
+    const rqst = new VerifiedPayoutsModel({
+      payout_id,
+      batch_withdrawal_id,
+      coin,
+      sum,
+      status,
+      userIdAtNP,
+      adress,
+      networkFees,
+      ourComission,
+      qtyToSend,
+      qtyForApiRqst
+    });
+
+    if (!rqst) {
+      throw new Error('не сохранилось значение в БД VerifiedPayoutsModel ');
+    }
+
+    const user = await rqst.save();
+    return ({status : 'created'});
+  } catch (error) {
+    console.error(
+      'Ошибка в функции models.services.js > createVerifiedPayout |',
+      error
+    );
+    return;
+  }
+}

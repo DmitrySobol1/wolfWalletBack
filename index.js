@@ -5,6 +5,10 @@ import { walletController } from './page1 - wallet/wallet.controller.js'
 import { payinController } from './page1 - wallet/payin-page/payin.controller.js'
 import { payoutController } from './page1 - wallet/payout-page/payout.controller.js'
 import { transferController } from './page1 - wallet/transfer-page/transfer.controller.js'
+import { stockController } from './page3 - stock/stock.controller.js'
+import { webhooksController } from './webhooks/webhooks.controller.js'
+
+import { exchangeController } from './page2 - exchange/exchange.controller.js'
 
 import UserModel from './models/user.js';
 import ComissionToPayoutModel from './models/comissionToPayout.js';
@@ -60,6 +64,15 @@ app.use('/api/payout', payoutController)
 app.use('/api/transfer', transferController)
 
 
+// exchange page
+app.use('/api/exchange', exchangeController)
+
+
+// stock page
+app.use('/api/stock', stockController)
+
+// all webhooks
+app.use('/api/wh', webhooksController)
 
 
 
@@ -392,23 +405,7 @@ app.post('/api/save_new_comissionExchange', async (req, res) => {
   });
 });
 
-// получить список комиссий за обмен
-app.get('/api/get_comissionExchange', async (req, res) => {
-  try {
-    const commissions = await ComissionExchangeModel.find().lean();
-
-    if (!commissions.length) {
-      return res.status(404).json({ status: 'no found' });
-    }
-
-    res.json({
-      status: 'success',
-      data: commissions,
-    });
-  } catch (error) {
-    res.status(500).json({ status: 'server error', error: error.message });
-  }
-});
+// 
 
 // //создать запрос на вывод монет (перевод с юзер счета на мастер счет)
 // app.post('/api/rqst_to_payout', async (req, res) => {
@@ -508,69 +505,69 @@ app.get('/api/get_comissionExchange', async (req, res) => {
 // }
 
 // для обработки "вывода" средств
-app.post('/api/webhook', async (req, res) => {
-  try {
-    const payload = req.body;
-    console.log('Получен вебхук payout:', payload);
+// app.post('/api/webhook', async (req, res) => {
+//   try {
+//     const payload = req.body;
+//     console.log('Получен вебхук payout:', payload);
 
-    // 1. Проверяем обязательный заголовок
-    const receivedSignature = req.headers['x-nowpayments-sig'];
-    if (!receivedSignature) {
-      console.log('Отсутствует заголовок подписи');
-      return res.status(400).json({ error: 'Missing signature header' });
-    }
+//     // 1. Проверяем обязательный заголовок
+//     const receivedSignature = req.headers['x-nowpayments-sig'];
+//     if (!receivedSignature) {
+//       console.log('Отсутствует заголовок подписи');
+//       return res.status(400).json({ error: 'Missing signature header' });
+//     }
 
-    // 2. Безопасная сортировка объекта
-    const safeSort = (obj) => {
-      const seen = new WeakSet();
-      const sort = (obj) => {
-        if (obj !== Object(obj)) return obj;
-        if (seen.has(obj)) return '[Circular]';
-        seen.add(obj);
+//     // 2. Безопасная сортировка объекта
+//     const safeSort = (obj) => {
+//       const seen = new WeakSet();
+//       const sort = (obj) => {
+//         if (obj !== Object(obj)) return obj;
+//         if (seen.has(obj)) return '[Circular]';
+//         seen.add(obj);
 
-        return Object.keys(obj)
-          .sort()
-          .reduce((result, key) => {
-            result[key] = sort(obj[key]);
-            return result;
-          }, {});
-      };
-      return sort(obj);
-    };
+//         return Object.keys(obj)
+//           .sort()
+//           .reduce((result, key) => {
+//             result[key] = sort(obj[key]);
+//             return result;
+//           }, {});
+//       };
+//       return sort(obj);
+//     };
 
-    // 3. Генерация и проверка подписи
-    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
-    hmac.update(JSON.stringify(safeSort(payload)));
-    const expectedSignature = hmac.digest('hex');
+//     // 3. Генерация и проверка подписи
+//     const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+//     hmac.update(JSON.stringify(safeSort(payload)));
+//     const expectedSignature = hmac.digest('hex');
 
-    // 4. Безопасное сравнение подписей
-    if (
-      !crypto.timingSafeEqual(
-        Buffer.from(receivedSignature),
-        Buffer.from(expectedSignature)
-      )
-    ) {
-      console.log('Неверная подпись');
-      return res.status(403).json({ error: 'Invalid signature' });
-    }
+//     // 4. Безопасное сравнение подписей
+//     if (
+//       !crypto.timingSafeEqual(
+//         Buffer.from(receivedSignature),
+//         Buffer.from(expectedSignature)
+//       )
+//     ) {
+//       console.log('Неверная подпись');
+//       return res.status(403).json({ error: 'Invalid signature' });
+//     }
 
-    console.log('Подписи совпадают');
+//     console.log('Подписи совпадают');
 
-    // 5. Обработка вебхука (с обработкой ошибок)
-    try {
-      res.status(200).json({ status: 'success' });
-      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+//     // 5. Обработка вебхука (с обработкой ошибок)
+//     try {
+//       res.status(200).json({ status: 'success' });
+//       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
 
-      await processWebhookPayout(payload);
-    } catch (processError) {
-      console.error('Ошибка обработки:', processError);
-      res.status(500).json({ error: 'Processing failed' });
-    }
-  } catch (error) {
-    console.error('Ошибка обработки вебхука:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+//       await processWebhookPayout(payload);
+//     } catch (processError) {
+//       console.error('Ошибка обработки:', processError);
+//       res.status(500).json({ error: 'Processing failed' });
+//     }
+//   } catch (error) {
+//     console.error('Ошибка обработки вебхука:', error);
+//     res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// });
 
 // функция обработки вывод средств (payout)
 async function processWebhookPayout(payload) {
@@ -706,27 +703,27 @@ async function processWebhookPayin(payload) {
   }
 }
 
-function sendTlgMessage(tlgid, language, type, textQtyCoins) {
-  const { title, text } = TEXTS[type]?.[language];
-  const fullText = text + textQtyCoins;
+// function sendTlgMessage(tlgid, language, type, textQtyCoins) {
+//   const { title, text } = TEXTS[type]?.[language];
+//   const fullText = text + textQtyCoins;
 
-  // const sendingText = TEXTS[language].text;
-  const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
-  const url = baseurl + params;
+//   // const sendingText = TEXTS[language].text;
+//   const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
+//   const url = baseurl + params;
 
-  https
-    .get(url, (response) => {
-      let data = '';
+//   https
+//     .get(url, (response) => {
+//       let data = '';
 
-      // Когда запрос завершён
-      response.on('end', () => {
-        console.log(JSON.parse(data)); // Выводим результат
-      });
-    })
-    .on('error', (err) => {
-      console.error('Ошибка:', err);
-    });
-}
+//       // Когда запрос завершён
+//       response.on('end', () => {
+//         console.log(JSON.parse(data)); // Выводим результат
+//       });
+//     })
+//     .on('error', (err) => {
+//       console.error('Ошибка:', err);
+//     });
+// }
 
 // //статистика пополнения баланса
 // app.get('/api/get_my_payin', async (req, res) => {
@@ -1213,214 +1210,74 @@ async function createRqstTransferToOtherUserModel(
   }
 }
 
-app.get('/api/get_conversion_rate', async (req, res) => {
-  try {
-    const amount = Number(req.query.amount);
-    const coinFrom = req.query.coinFrom;
-    const coinTo = req.query.coinTo;
 
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/estimate?amount=${amount}&currency_from=${coinFrom}&currency_to=${coinTo}`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
 
-    const convertedAmount = response.data.estimated_amount;
 
-    return res.status(200).json({
-      status: 'ok',
-      convertedAmount: convertedAmount,
-    });
-  } catch (err) {
-    console.error('Ошибка в /api/get_conversion_rate:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
 
-app.get('/api/get_minamount', async (req, res) => {
-  try {
-    const minAmount = await getMinAmountForDeposit(req.query.coinFrom);
+// // получение баланса юзера в выбранной валюте, для отображения на вкладке обмена
+// app.get('/api/get_balance_currentCoin', async (req, res) => {
+//   try {
+//     const tlgid = req.query.tlgid;
+//     const coin = req.query.coin;
 
-    return res.status(200).json({
-      status: 'ok',
-      minAmount: minAmount,
-    });
-  } catch (err) {
-    console.error('Ошибка в /api/get_minamount:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
+//     const user = await UserModel.findOne({ tlgid: tlgid });
+//     // const valute = user.valute;
 
-// получение баланса юзера в выбранной валюте, для отображения на вкладке обмена
-app.get('/api/get_balance_currentCoin', async (req, res) => {
-  try {
-    const tlgid = req.query.tlgid;
-    const coin = req.query.coin;
+//     if (user) {
+//       const nowpaymentid = user._doc.nowpaymentid;
 
-    const user = await UserModel.findOne({ tlgid: tlgid });
-    // const valute = user.valute;
+//       const response = await axios.get(
+//         `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
+//         {
+//           headers: {
+//             'x-api-key': process.env.NOWPAYMENTSAPI,
+//           },
+//         }
+//       );
 
-    if (user) {
-      const nowpaymentid = user._doc.nowpaymentid;
+//       const userBalance = response.data.result.balances;
 
-      const response = await axios.get(
-        `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
-        {
-          headers: {
-            'x-api-key': process.env.NOWPAYMENTSAPI,
-          },
-        }
-      );
+//       const arrayOfUserBalance = Object.entries(userBalance).map(
+//         ([key, value]) => ({
+//           currency: key, // кладем ключ внутрь объекта
+//           ...value, // распаковываем остальные свойства
+//         })
+//       );
 
-      const userBalance = response.data.result.balances;
+//       console.log('2 | userBalance', arrayOfUserBalance);
 
-      const arrayOfUserBalance = Object.entries(userBalance).map(
-        ([key, value]) => ({
-          currency: key, // кладем ключ внутрь объекта
-          ...value, // распаковываем остальные свойства
-        })
-      );
+//       arrayOfUserBalance.map((item) => {
+//         const epsilon = 1e-20;
 
-      console.log('2 | userBalance', arrayOfUserBalance);
+//         if (item.currency === coin && Math.abs(item.amount - 2e-18) > epsilon) {
+//           return res.json({
+//             coin: coin,
+//             balance: item.amount,
+//           });
+//         }
+//       });
 
-      arrayOfUserBalance.map((item) => {
-        const epsilon = 1e-20;
+//       // если не найдено
+//       return res.json({
+//         coin: coin,
+//         balance: 0,
+//       });
 
-        if (item.currency === coin && Math.abs(item.amount - 2e-18) > epsilon) {
-          return res.json({
-            coin: coin,
-            balance: item.amount,
-          });
-        }
-      });
+//       // return res.json({ arrayOfUserBalanceWithUsdPrice });
+//     } else {
+//       console.log('такого нет');
+//     }
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
-      // если не найдено
-      return res.json({
-        coin: coin,
-        balance: 0,
-      });
 
-      // return res.json({ arrayOfUserBalanceWithUsdPrice });
-    } else {
-      console.log('такого нет');
-    }
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
-//перевод с Юзер счета на Мастер счет для Обмена
-app.post('/api/rqst_fromUser_toMaster', async (req, res) => {
-  try {
-    const token = await getTokenFromNowPayment();
 
-    // найти nowPayment id по тлг id
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
-
-    if (!user) {
-      return res.status(404).send('Пользователь не найден');
-    }
-
-    const nowpaymentid = user._doc.nowpaymentid;
-    const language = user._doc.language;
-
-    const requestData = {
-      currency: String(req.body.coinFrom),
-      amount: Number(req.body.amount),
-      sub_partner_id: String(nowpaymentid),
-    };
-
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/sub-partner/write-off',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 секунд таймаут
-      }
-    );
-
-    if (response.data.result.status === 'PROCESSING') {
-      const id_clientToMaster = response.data.result.id;
-
-      // console.log('transactionId=', response.data.result);
-
-      const createRqst = await createRqstExchange(
-        id_clientToMaster,
-        req.body.tlgid,
-        nowpaymentid,
-        req.body.amount,
-        req.body.coinFrom,
-        req.body.convertedAmount,
-        req.body.coinTo,
-        req.body.nowpaymentComission,
-        req.body.ourComission,
-        language
-      );
-
-      if (createRqst === 'created') {
-        // console.log('createRqst=', createRqst);
-        return res.json({ status: 'OK' });
-      }
-    }
-  } catch (error) {
-    console.error('Error in createRqstTrtFromuserToMain', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
-  }
-});
-
-async function createRqstExchange(
-  id_clientToMaster,
-  tlgid,
-  nowpaymentid,
-  amount,
-  coinFrom,
-  convertedAmount,
-  coinTo,
-  nowpaymentComission,
-  ourComission,
-  language
-) {
-  try {
-    const rqst = new RqstExchangeSchemaModel({
-      id_clientToMaster: id_clientToMaster,
-      id_exchange: 0,
-      id_masterToClient: 0,
-      status: 'new',
-      tlgid: tlgid,
-      userNP: nowpaymentid,
-      amountFrom: amount,
-      coinFrom: coinFrom,
-      amountTo: convertedAmount,
-      coinTo: coinTo,
-      nowpaymentComission: nowpaymentComission,
-      ourComission: ourComission,
-      language: language,
-    });
-
-    await rqst.save();
-    return 'created';
-  } catch (err) {
-    console.log(err);
-  }
-}
 
 ///////////////////////////
 
@@ -1608,39 +1465,9 @@ app.post('/api/test_kicoin', async (req, res) => {
 
 // БИРЖА - START
 
-// получение стоимости валютной пары
-app.get('/api/get_ticker', async (req, res) => {
-  try {
-    const response = await axios.get(
-      `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${req.query.pair}`
-    );
 
-    return res.json(response.data);
-  } catch (err) {
-    console.log(err);
-    res.json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
-// получение торговых пар для биржи
-app.get('/api/get_stock_pairs', async (req, res) => {
-  try {
-    const pairs = await TradingPairsModel.find().lean();
 
-    if (!pairs.length) {
-      return res.status(404).json({ status: 'no found' });
-    }
-
-    res.json({
-      status: 'success',
-      data: pairs,
-    });
-  } catch (error) {
-    res.status(500).json({ status: 'server error', error: error.message });
-  }
-});
 
 //сохранить новую торговую пару
 app.post('/api/save_new_tradingpair', async (req, res) => {
@@ -1672,104 +1499,104 @@ app.post('/api/save_new_stockAdress', async (req, res) => {
   return res.json({ status: 'saved' });
 });
 
-//новая заявка на биржу - marketorder
-app.post('/api/new_stockorder_market', async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
-    const { ...userData } = user._doc;
-    const nowpaymentid = userData.nowpaymentid;
-    const language = userData.language;
+// //новая заявка на биржу - marketorder
+// app.post('/api/new_stockorder_market', async (req, res) => {
+//   try {
+//     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+//     const { ...userData } = user._doc;
+//     const nowpaymentid = userData.nowpaymentid;
+//     const language = userData.language;
 
-    //вывод с счета клиента на мастер счет
-    const token = await getTokenFromNowPayment();
+//     //вывод с счета клиента на мастер счет
+//     const token = await getTokenFromNowPayment();
 
-    let requestData = {};
+//     let requestData = {};
 
-    if (req.body.type === 'buy') {
-      requestData = {
-        currency: String(req.body.coin2full),
-        amount: Number(req.body.amount),
-        sub_partner_id: String(nowpaymentid),
-      };
-    }
+//     if (req.body.type === 'buy') {
+//       requestData = {
+//         currency: String(req.body.coin2full),
+//         amount: Number(req.body.amount),
+//         sub_partner_id: String(nowpaymentid),
+//       };
+//     }
 
-    if (req.body.type === 'sell') {
-      requestData = {
-        currency: String(req.body.coin1full),
-        amount: Number(req.body.amount),
-        sub_partner_id: String(nowpaymentid),
-      };
-    }
+//     if (req.body.type === 'sell') {
+//       requestData = {
+//         currency: String(req.body.coin1full),
+//         amount: Number(req.body.amount),
+//         sub_partner_id: String(nowpaymentid),
+//       };
+//     }
 
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/sub-partner/write-off',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 секунд таймаут
-      }
-    );
+//     const response = await axios.post(
+//       'https://api.nowpayments.io/v1/sub-partner/write-off',
+//       requestData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json',
+//         },
+//         timeout: 10000, // 10 секунд таймаут
+//       }
+//     );
 
-    let errorText = '';
-    let statusText = 'error';
-    let id_clientToMaster = null;
+//     let errorText = '';
+//     let statusText = 'error';
+//     let id_clientToMaster = null;
 
-    if (response.data.result.status === 'PROCESSING') {
-      id_clientToMaster = response.data.result.id;
-      errorText = 'ok';
-      statusText = 'new';
-    } else {
-      errorText = 'ошибка при отправке с счета клиента на мастер счет';
-    }
+//     if (response.data.result.status === 'PROCESSING') {
+//       id_clientToMaster = response.data.result.id;
+//       errorText = 'ok';
+//       statusText = 'new';
+//     } else {
+//       errorText = 'ошибка при отправке с счета клиента на мастер счет';
+//     }
 
-    //записать инфо в БД
-    const doc = new RqstStockMarketOrderModel({
-      id_clientToMaster: id_clientToMaster,
-      id_MasterToStock: null,
-      id_OrderOnStock: null,
-      status: statusText,
-      tlgid: req.body.tlgid,
-      userNP: nowpaymentid,
-      type: req.body.type,
-      coin1short: req.body.coin1short,
-      coin1full: req.body.coin1full,
-      coin1chain: req.body.coin1chain,
-      coin2short: req.body.coin2short,
-      coin2full: req.body.coin2full,
-      coin2chain: req.body.coin2chain,
-      amount: req.body.amount,
-      nowpaymentComission: null,
-      ourComission: null,
-      stockComission: null,
-      language: language,
-      helptext: req.body.helptext,
-      errorText: errorText,
-      amountSentToStock: null,
-      payout_id: null,
-      batch_withdrawal_id: null,
-      order_id: null,
-      trtCoinFromStockToNP_np_id: null,
-      trtCoinFromStockToNP_stock_id: null,
-      amountAccordingBaseIncrement: null,
-      amountSentBackToNp: null,
-      amountBeReceivedByStock: null
-    });
+//     //записать инфо в БД
+//     const doc = new RqstStockMarketOrderModel({
+//       id_clientToMaster: id_clientToMaster,
+//       id_MasterToStock: null,
+//       id_OrderOnStock: null,
+//       status: statusText,
+//       tlgid: req.body.tlgid,
+//       userNP: nowpaymentid,
+//       type: req.body.type,
+//       coin1short: req.body.coin1short,
+//       coin1full: req.body.coin1full,
+//       coin1chain: req.body.coin1chain,
+//       coin2short: req.body.coin2short,
+//       coin2full: req.body.coin2full,
+//       coin2chain: req.body.coin2chain,
+//       amount: req.body.amount,
+//       nowpaymentComission: null,
+//       ourComission: null,
+//       stockComission: null,
+//       language: language,
+//       helptext: req.body.helptext,
+//       errorText: errorText,
+//       amountSentToStock: null,
+//       payout_id: null,
+//       batch_withdrawal_id: null,
+//       order_id: null,
+//       trtCoinFromStockToNP_np_id: null,
+//       trtCoinFromStockToNP_stock_id: null,
+//       amountAccordingBaseIncrement: null,
+//       amountSentBackToNp: null,
+//       amountBeReceivedByStock: null
+//     });
 
-    await doc.save();
+//     await doc.save();
 
-    console.log('success');
+//     console.log('success');
 
-    return res.json({ statusFn: 'saved' });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     return res.json({ statusFn: 'saved' });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
 //FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FORSTOCK
 // для обработки "прихода денег на биржу"
@@ -1948,411 +1775,306 @@ app.post('/api/webhook_fromStockToUser', async (req, res) => {
 //   }
 // }
 
-//найти мои открытые ордера
-app.get('/api/get_myOpenOrders', async (req, res) => {
-  try {
-    if (!req.query.tlgid) {
-      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
-    }
+// //найти мои открытые ордера
+// app.get('/api/get_myOpenOrders', async (req, res) => {
+//   try {
+//     if (!req.query.tlgid) {
+//       return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+//     }
 
-    const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
-    const lang = userData.language;
+//     const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
+//     const lang = userData.language;
 
-    const marketOrders = await RqstStockMarketOrderModel.find({
-      status: { $ne: 'done' },
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const marketOrders = await RqstStockMarketOrderModel.find({
+//       status: { $ne: 'done' },
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
     
-    const limitOrders = await RqstStockLimitOrderModel.find({
-      status: { $ne: 'done' },
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//     const limitOrders = await RqstStockLimitOrderModel.find({
+//       status: { $ne: 'done' },
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
 
-    if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
-      return res.status(200).json({ status: 'no' });
-    }
+//     if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
+//       return res.status(200).json({ status: 'no' });
+//     }
 
 
-    const processedMarketOrders = marketOrders.map((item) => {
+//     const processedMarketOrders = marketOrders.map((item) => {
 
-      const type = {
-        ru: 'маркет ордер',
-        en: 'market order',
-        de: 'marktauftrag',
-      };
+//       const type = {
+//         ru: 'маркет ордер',
+//         en: 'market order',
+//         de: 'marktauftrag',
+//       };
 
-      const statusText = {
-        ru: 'в работе',
-        en: 'in progress',
-        de: 'im gange',
-      };
+//       const statusText = {
+//         ru: 'в работе',
+//         en: 'in progress',
+//         de: 'im gange',
+//       };
 
-      let infoText = {};
+//       let infoText = {};
 
-      if (item.type == 'buy') {
-        infoText = {
-          ru: `покупка ${item.coin1full} за ${item.amount} ${item.coin2full}`,
-          en: `buying ${item.coin1full} for ${item.amount} ${item.coin2full}`,
-          de: `kauf ${item.coin1full} für ${item.amount} ${item.coin2full}`,
-        };
-      }
+//       if (item.type == 'buy') {
+//         infoText = {
+//           ru: `покупка ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+//           en: `buying ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+//           de: `kauf ${item.coin1full} für ${item.amount} ${item.coin2full}`,
+//         };
+//       }
 
-      if (item.type == 'sell') {
-        infoText = {
-          ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
-          en: `selling ${item.amount} ${item.coin1full} for ${item.coin2full}`,
-          de: `verkauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
-        };
-      }
+//       if (item.type == 'sell') {
+//         infoText = {
+//           ru: `продажа ${item.amount} ${item.coin1full} за ${item.coin2full}`,
+//           en: `selling ${item.amount} ${item.coin1full} for ${item.coin2full}`,
+//           de: `verkauf ${item.amount} ${item.coin1full} für ${item.coin2full}`,
+//         };
+//       }
 
 
-      return {
-        status: statusText,
-        type: type,
-        info : infoText
-      };
-    });
+//       return {
+//         status: statusText,
+//         type: type,
+//         info : infoText
+//       };
+//     });
    
-    const processedLimittOrders = limitOrders.map((item) => {
+//     const processedLimittOrders = limitOrders.map((item) => {
 
-      const type = {
-        ru: 'лимитный ордер',
-        en: 'limit order',
-        de: 'limit order',
-      };
+//       const type = {
+//         ru: 'лимитный ордер',
+//         en: 'limit order',
+//         de: 'limit order',
+//       };
 
-      const statusText = {
-        ru: 'в работе',
-        en: 'in progress',
-        de: 'im gange',
-      };
+//       const statusText = {
+//         ru: 'в работе',
+//         en: 'in progress',
+//         de: 'im gange',
+//       };
 
-      let infoText = {};
+//       let infoText = {};
 
-      if (item.type == 'buy') {
-        infoText = {
-          ru: `покупка ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
-          en: `buying ${item.coin1full} per price ${item.price} ${item.coin2full}`,
-          de: `kauf ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
-        };
-      }
+//       if (item.type == 'buy') {
+//         infoText = {
+//           ru: `покупка ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
+//           en: `buying ${item.coin1full} per price ${item.price} ${item.coin2full}`,
+//           de: `kauf ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
+//         };
+//       }
 
-      if (item.type == 'sell') {
-        infoText = {
-          ru: `продажа ${item.amount} ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
-          en: `selling ${item.amount} ${item.coin1full} per price ${item.price} ${item.coin2full}`,
-          de: `verkauf ${item.amount} ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
-        };
-      }
-
-
-      return {
-        status: statusText,
-        type: type,
-        info : infoText
-      };
-    });
-
-   
-
-    const total = [
-      ...processedMarketOrders,
-      ...processedLimittOrders,
-    ];
-
-    // console.log('total', total);
-
-    return res.status(200).json({
-      statusFn: 'ok',
-      count: total.length,
-      data: total,
-    });
-    // return res.status(200).json({
-    //   status: 'ok',
-    //   count: processedPayins.length,
-    //   data: processedPayins,
-    // });
-  } catch (err) {
-    console.error('Ошибка в /api/get_myOpenOrders:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
+//       if (item.type == 'sell') {
+//         infoText = {
+//           ru: `продажа ${item.amount} ${item.coin1full} по цене ${item.price} ${item.coin2full}`,
+//           en: `selling ${item.amount} ${item.coin1full} per price ${item.price} ${item.coin2full}`,
+//           de: `verkauf ${item.amount} ${item.coin1full} pro preis ${item.price} ${item.coin2full}`,
+//         };
+//       }
 
 
-
-//найти мои выполненные ордера
-app.get('/api/get_myDoneOrders', async (req, res) => {
-  try {
-    if (!req.query.tlgid) {
-      return res.status(400).json({ message: 'Параметр tlgid обязателен' });
-    }
-
-    const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
-    const lang = userData.language;
-
-    const marketOrders = await RqstStockMarketOrderModel.find({
-      status:'done' ,
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-    
-      const limitOrders = await RqstStockLimitOrderModel.find({
-      status:'done' ,
-      tlgid: req.query.tlgid,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+//       return {
+//         status: statusText,
+//         type: type,
+//         info : infoText
+//       };
+//     });
 
    
 
-    if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
-      return res.status(200).json({ status: 'no' });
-    }
+//     const total = [
+//       ...processedMarketOrders,
+//       ...processedLimittOrders,
+//     ];
+
+//     // console.log('total', total);
+
+//     return res.status(200).json({
+//       statusFn: 'ok',
+//       count: total.length,
+//       data: total,
+//     });
+//     // return res.status(200).json({
+//     //   status: 'ok',
+//     //   count: processedPayins.length,
+//     //   data: processedPayins,
+//     // });
+//   } catch (err) {
+//     console.error('Ошибка в /api/get_myOpenOrders:', err);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Внутренняя ошибка сервера',
+//     });
+//   }
+// });
+
+
+
+// //найти мои выполненные ордера
+// app.get('/api/get_myDoneOrders', async (req, res) => {
+//   try {
+//     if (!req.query.tlgid) {
+//       return res.status(400).json({ message: 'Параметр tlgid обязателен' });
+//     }
+
+//     const userData = await UserModel.findOne({ tlgid: req.query.tlgid });
+//     const lang = userData.language;
+
+//     const marketOrders = await RqstStockMarketOrderModel.find({
+//       status:'done' ,
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
+    
+//       const limitOrders = await RqstStockLimitOrderModel.find({
+//       status:'done' ,
+//       tlgid: req.query.tlgid,
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
 
    
 
-    const processedMarketOrders = marketOrders.map((item) => {
+//     if (!marketOrders && !limitOrders || marketOrders.length === 0 && limitOrders.length === 0) {
+//       return res.status(200).json({ status: 'no' });
+//     }
 
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+   
 
-      const type = {
-        ru: 'маркет ордер',
-        en: 'market order',
-        de: 'marktauftrag',
-      };
+//     const processedMarketOrders = marketOrders.map((item) => {
 
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      let infoText = {};
-
-      if (item.type == 'buy') {
-        infoText = {
-          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
-          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
-          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
-        };
-      }
+//       const type = {
+//         ru: 'маркет ордер',
+//         en: 'market order',
+//         de: 'marktauftrag',
+//       };
 
 
-      if (item.type == 'sell') {
-        infoText = {
-          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
-          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
-          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
-        };
-      }
+//       let infoText = {};
 
-      return {
-        type: type,
-        info: infoText,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        forSort: item.updatedAt,
-      };
-    });
+//       if (item.type == 'buy') {
+//         infoText = {
+//           ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+//           en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+//           de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
+//         };
+//       }
+
+
+//       if (item.type == 'sell') {
+//         infoText = {
+//           ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
+//           en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
+//           de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
+//         };
+//       }
+
+//       return {
+//         type: type,
+//         info: infoText,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         forSort: item.updatedAt,
+//       };
+//     });
     
-    const processedLimitOrders = limitOrders.map((item) => {
+//     const processedLimitOrders = limitOrders.map((item) => {
 
-      const date = new Date(item.updatedAt);
-      const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
-      const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
-      const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+//       const date = new Date(item.updatedAt);
+//       const day = date.getDate().toString().padStart(2, '0'); // добавляем 0 перед днем
+//       const month = (date.getMonth() + 1).toString().padStart(2, '0'); // месяц в диапазоне от 1 до 12
+//       const year = date.getFullYear().toString().slice(-2); // получаем последние 2 цифры года
+//       const hours = date.getHours().toString().padStart(2, '0');
+//       const minutes = date.getMinutes().toString().padStart(2, '0');
 
-      const type = {
-        ru: 'лимитный ордер',
-        en: 'limit order',
-        de: 'limit order',
-      };
-
-
-      let infoText = {};
-
-      if (item.type == 'buy') {
-        infoText = {
-          ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
-          en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
-          de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
-        };
-      }
+//       const type = {
+//         ru: 'лимитный ордер',
+//         en: 'limit order',
+//         de: 'limit order',
+//       };
 
 
-      if (item.type == 'sell') {
-        infoText = {
-          ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
-          en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
-          de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
-        };
-      }
+//       let infoText = {};
 
-      return {
-        type: type,
-        info: infoText,
-        formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
-        forSort: item.updatedAt,
-      };
-    });
+//       if (item.type == 'buy') {
+//         infoText = {
+//           ru: `покупка ${item.amountSentBackToNp} ${item.coin1full} за ${item.amount} ${item.coin2full}`,
+//           en: `buying ${item.amountSentBackToNp} ${item.coin1full} for ${item.amount} ${item.coin2full}`,
+//           de: `kauf ${item.amountSentBackToNp} ${item.coin1full} für ${item.amount} ${item.coin2full}`,
+//         };
+//       }
+
+
+//       if (item.type == 'sell') {
+//         infoText = {
+//           ru: `продажа ${item.amount} ${item.coin1full} за ${item.amountSentBackToNp} ${item.coin2full}`,
+//           en: `selling ${item.amount} ${item.coin1full} for ${item.amountSentBackToNp} ${item.coin2full}`,
+//           de: `verkauf ${item.amount} ${item.coin1full} für ${item.amountSentBackToNp} ${item.coin2full}`,
+//         };
+//       }
+
+//       return {
+//         type: type,
+//         info: infoText,
+//         formattedDate: `${day}.${month}.${year} ${hours}:${minutes}`,
+//         forSort: item.updatedAt,
+//       };
+//     });
 
     
 
-    const total = [
-      ...processedMarketOrders,
-      ...processedLimitOrders,
-    ].sort((a, b) => b.forSort - a.forSort);;
+//     const total = [
+//       ...processedMarketOrders,
+//       ...processedLimitOrders,
+//     ].sort((a, b) => b.forSort - a.forSort);;
 
-    // console.log('total', total);
+//     // console.log('total', total);
 
-    return res.status(200).json({
-      statusFn: 'ok',
-      count: total.length,
-      data: total,
-    });
-    // return res.status(200).json({
-    //   status: 'ok',
-    //   count: processedPayins.length,
-    //   data: processedPayins,
-    // });
-  } catch (err) {
-    console.error('Ошибка в /api/get_myOpenOrders:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Внутренняя ошибка сервера',
-    });
-  }
-});
-
-
-//получение минимальных сумм для ввода/вывода NP|stock - start
-
-app.get('/api/get_minWithdrawNp', async (req, res) => {
-  try {
-    
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/payout-withdrawal/min-amount/${req.query.coin}`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
-
-    if (response.data.success != true){
-      return res.json({statusFn:'notOk'})
-    } else {
-
-      res.json({
-      statusFn: 'ok',
-      result: response.data.result,
-    });
-
-    } 
-    
-  } catch (error) {
-    res.status(500).json({ status: 'server error', error: error.message });
-  }
-});
+//     return res.status(200).json({
+//       statusFn: 'ok',
+//       count: total.length,
+//       data: total,
+//     });
+//     // return res.status(200).json({
+//     //   status: 'ok',
+//     //   count: processedPayins.length,
+//     //   data: processedPayins,
+//     // });
+//   } catch (err) {
+//     console.error('Ошибка в /api/get_myOpenOrders:', err);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Внутренняя ошибка сервера',
+//     });
+//   }
+// });
 
 
-app.get('/api/get_minDepositWithdrawStock', async (req, res) => {
-  try {
-    const response = await axios.get(
-      `https://api.kucoin.com/api/v3/currencies/${req.query.coin}?chain=${req.query.chain}`
-    );
-       
-    if (
-    response.data.code === '200000' &&
-    Array.isArray(response.data.data.chains) &&
-    response.data.data.chains.length > 0 &&
-    response.data.data.chains[0].depositMinSize &&
-    response.data.data.chains[0].withdrawalMinSize
-  ) {
-    
-    //чтобы избежать нехватки при перевода с Биржи на Клиента
-    const sum= Number(response.data.data.chains[0].withdrawalMinSize) + Number(response.data.data.chains[0].withdrawalMinFee)
-    
-    res.json({
-      statusFn: 'ok',
-      deposit: response.data.data.chains[0].depositMinSize,
-      withdrawal: sum,
-    });
-  } else {
-    res.json({ statusFn: 'notOk' });
-  }
 
 
-  } catch (err) {
-    console.log(err);
-    res.json({
-      message: 'ошибка сервера',
-    });
-  }
-});
 
 
-app.get('/api/get_minDepositNp', async (req, res) => {
-  try {
-    
-    const response = await axios.get(
-      `https://api.nowpayments.io/v1/min-amount?currency_from=${req.query.coin}&fiat_equivalent=usd&is_fixed_rate=False&is_fee_paid_by_user=False`,
-      {
-        headers: {
-          'x-api-key': process.env.NOWPAYMENTSAPI,
-        },
-      }
-    );
 
-    if (response.data?.min_amount){
-       res.json({
-      statusFn: 'ok',
-      result: response.data.min_amount,
-    });
-      
-    } else {
-        return res.json({statusFn:'notOk'})
-    } 
-    
-  } catch (error) {
-    return res.json({statusFn:'notOk', error:error.message  })
-    // res.status(500).json({ status: 'server error', error: error.message });
-  }
-});
+
+
 
 //получение минимальных сумм для ввода/вывода NP|stock - finish
 
 
 
-// получить сумму комиссий
-app.get('/api/get_ourComissionStockMarket', async (req, res) => {
-  try {
-    const comission = await ComissionStockMarketModel.findOne({
-      coin: 'ourComission',
-    });
 
-    if (comission) {
-      const value = comission.qty
-      return res.json({ comission:value, statusFn: 'ok'  });
-    } else {
-      return res.json({ statusFn: 'notok'  });
-    }
-    
-  } catch (err) {
-    console.log(err);
-    return res.json({ statusFn: 'notok', message: 'ошибка сервера'  });
-  }
-});
 
 
 // БИРЖА - FINISH
@@ -2429,111 +2151,111 @@ app.post('/api/save_new_tickerSocket', async (req, res) => {
 })
 
 
-//новая заявка на биржу - limitOrder
-app.post('/api/new_stockorder_limit', async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
-    const { ...userData } = user._doc;
-    const nowpaymentid = userData.nowpaymentid;
-    const language = userData.language;
+// //новая заявка на биржу - limitOrder
+// app.post('/api/new_stockorder_limit', async (req, res) => {
+//   try {
+//     const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+//     const { ...userData } = user._doc;
+//     const nowpaymentid = userData.nowpaymentid;
+//     const language = userData.language;
 
-    //вывод с счета клиента на мастер счет
-    const token = await getTokenFromNowPayment();
+//     //вывод с счета клиента на мастер счет
+//     const token = await getTokenFromNowPayment();
 
-    let requestData = {};
+//     let requestData = {};
 
-    if (req.body.type === 'buy') {
-      requestData = {
-        currency: String(req.body.coin2full),
-        amount: Number(req.body.amount),
-        sub_partner_id: String(nowpaymentid),
-      };
-    }
+//     if (req.body.type === 'buy') {
+//       requestData = {
+//         currency: String(req.body.coin2full),
+//         amount: Number(req.body.amount),
+//         sub_partner_id: String(nowpaymentid),
+//       };
+//     }
 
-    if (req.body.type === 'sell') {
-      requestData = {
-        currency: String(req.body.coin1full),
-        amount: Number(req.body.amount),
-        sub_partner_id: String(nowpaymentid),
-      };
-    }
+//     if (req.body.type === 'sell') {
+//       requestData = {
+//         currency: String(req.body.coin1full),
+//         amount: Number(req.body.amount),
+//         sub_partner_id: String(nowpaymentid),
+//       };
+//     }
 
-    const response = await axios.post(
-      'https://api.nowpayments.io/v1/sub-partner/write-off',
-      requestData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 секунд таймаут
-      }
-    );
+//     const response = await axios.post(
+//       'https://api.nowpayments.io/v1/sub-partner/write-off',
+//       requestData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json',
+//         },
+//         timeout: 10000, // 10 секунд таймаут
+//       }
+//     );
 
-    let errorText = '';
-    let statusText = 'error';
-    let id_clientToMaster = null;
-
-
-    if (response.data.result.status === 'PROCESSING') {
-      id_clientToMaster = response.data.result.id;
-      errorText = 'ok';
-      statusText = 'new';
-      console.log('CHECKING WRITE-OFF | ok')
-    } else {
-      errorText = 'ошибка при отправке с счета клиента на мастер счет';
-      console.log('CHECKING WRITE-OFF | not ok')
-    }
-
-    //записать инфо в БД
-    const pair = `${req.body.coin1short}-${req.body.coin2short}`
-
-    const doc = new RqstStockLimitOrderModel({
-      id_clientToMaster: id_clientToMaster,
-      id_MasterToStock: null,
-      id_OrderOnStock: null,
-      status: statusText,
-      tlgid: req.body.tlgid,
-      userNP: nowpaymentid,
-      type: req.body.type,
-      pair: pair,  
-      coin1short: req.body.coin1short,
-      coin1full: req.body.coin1full,
-      coin1chain: req.body.coin1chain,
-      coin2short: req.body.coin2short,
-      coin2full: req.body.coin2full,
-      coin2chain: req.body.coin2chain,
-      amount: req.body.amount,
-      price: req.body.limitPrice,
-      nowpaymentComission: null,
-      ourComission: null,
-      stockComission: null,
-      language: language,
-      helptext: req.body.helptext,
-      errorText: errorText,
-      amountSentToStock: null,
-      payout_id: null,
-      batch_withdrawal_id: null,
-      order_id: null,
-      trtCoinFromStockToNP_np_id: null,
-      trtCoinFromStockToNP_stock_id: null,
-      amountAccordingBaseIncrement: null,
-      amountSentBackToNp: null,
-      amountBeReceivedByStock: null
-    });
+//     let errorText = '';
+//     let statusText = 'error';
+//     let id_clientToMaster = null;
 
 
-    await doc.save();
-    console.log('success');
+//     if (response.data.result.status === 'PROCESSING') {
+//       id_clientToMaster = response.data.result.id;
+//       errorText = 'ok';
+//       statusText = 'new';
+//       console.log('CHECKING WRITE-OFF | ok')
+//     } else {
+//       errorText = 'ошибка при отправке с счета клиента на мастер счет';
+//       console.log('CHECKING WRITE-OFF | not ok')
+//     }
 
-    return res.json({ statusFn: 'saved' });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
-  }
-});
+//     //записать инфо в БД
+//     const pair = `${req.body.coin1short}-${req.body.coin2short}`
+
+//     const doc = new RqstStockLimitOrderModel({
+//       id_clientToMaster: id_clientToMaster,
+//       id_MasterToStock: null,
+//       id_OrderOnStock: null,
+//       status: statusText,
+//       tlgid: req.body.tlgid,
+//       userNP: nowpaymentid,
+//       type: req.body.type,
+//       pair: pair,  
+//       coin1short: req.body.coin1short,
+//       coin1full: req.body.coin1full,
+//       coin1chain: req.body.coin1chain,
+//       coin2short: req.body.coin2short,
+//       coin2full: req.body.coin2full,
+//       coin2chain: req.body.coin2chain,
+//       amount: req.body.amount,
+//       price: req.body.limitPrice,
+//       nowpaymentComission: null,
+//       ourComission: null,
+//       stockComission: null,
+//       language: language,
+//       helptext: req.body.helptext,
+//       errorText: errorText,
+//       amountSentToStock: null,
+//       payout_id: null,
+//       batch_withdrawal_id: null,
+//       order_id: null,
+//       trtCoinFromStockToNP_np_id: null,
+//       trtCoinFromStockToNP_stock_id: null,
+//       amountAccordingBaseIncrement: null,
+//       amountSentBackToNp: null,
+//       amountBeReceivedByStock: null
+//     });
+
+
+//     await doc.save();
+//     console.log('success');
+
+//     return res.json({ statusFn: 'saved' });
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       message: 'ошибка сервера',
+//     });
+//   }
+// });
 
 
 

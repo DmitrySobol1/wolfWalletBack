@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import UserModel from '../models/user.js';
 
+import UserModel from '../models/user.js';
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
 import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
 import RqstExchangeSchemaModel from '../models/rqstExchange.js';

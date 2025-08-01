@@ -339,3 +339,148 @@ export async function makeTransferResponse(token, requestData) {
     throw new Error(`Error adress: ${error.message}`);
   }
 }
+
+export async function getBalance(nowpaymentid) {
+  try {
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    if (!response) {
+      return;
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error in getBalance', {
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+    });
+    throw new Error(`Error adress: ${error.message}`);
+  }
+}
+
+export async function getEstimatePricePair(amount, coinFrom, coinTo) {
+  try {
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/estimate?amount=${amount}&currency_from=${coinFrom}&currency_to=${coinTo}`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    if (!response) {
+      return;
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error in getEstimatePricePair', {
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+    });
+    throw new Error(`Error adress: ${error.message}`);
+  }
+}
+
+export async function getMinDeposit(coin) {
+  try {
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/min-amount?currency_from=${coin}&fiat_equivalent=usd&is_fixed_rate=False&is_fee_paid_by_user=False`,
+      {
+        headers: {
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+        },
+      }
+    );
+
+    if (!response) {
+      throw new Error('не пришел ответ от NowPayment');
+    }
+
+    return response;
+  } catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getMinDeposit |',
+      error
+    );
+    return;
+  }
+}
+
+//создать payout
+export async function createpayout(requestData, token) {
+  try {
+    if (!requestData || !token) {
+      throw new Error('не получены параметры requestData или  token ');
+    }
+
+    const response = await axios.post(
+      'https://api.nowpayments.io/v1/payout',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response) {
+      throw new Error('не пришел ответ от NowPayment');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > createpayout |',
+      error
+    );
+    return;
+  }
+}
+
+//верифицировать payout
+export async function verifyPayout(withdrawal_id, code2fa, token) {
+  try {
+    if (!withdrawal_id || !code2fa || !token) {
+      throw new Error(
+        'не получены параметры withdrawal_id или code2fa или token '
+      );
+    }
+
+    const response = await axios.post(
+      `https://api.nowpayments.io/v1/payout/${withdrawal_id}/verify`,
+      {
+        verification_code: code2fa,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-api-key': process.env.NOWPAYMENTSAPI,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response) {
+      throw new Error('не пришел ответ от NowPayment');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > verifyPayout |',
+      error
+    );
+    return;
+  }
+}

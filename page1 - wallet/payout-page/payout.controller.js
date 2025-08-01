@@ -69,7 +69,10 @@ router.get('/get_info_for_payout', async (req, res) => {
 //получить комиссию сети за вывод монеты
 router.get('/get_withdrawal_fee', async (req, res) => {
   try {
-    const response = await getPayoutFee(req.query.coin, req.query.amount);
+
+    const {coin, amount} = req.query
+
+    const response = await getPayoutFee(coin, amount);
 
     if (!response) {
       return res.json({ statusBE: 'notOk' });
