@@ -42,21 +42,22 @@ export async function processWebhookPayout(payload) {
       }
 
       // меняем статус, что сообщение отправили
-    const updatedItem2 = await VerifiedPayoutsModel.findOneAndUpdate(
-      { batch_withdrawal_id: payload.batch_withdrawal_id },
-      { $set: { isSentMsg: true } }
-    );
+        const updatedItem2 = await VerifiedPayoutsModel.findOneAndUpdate(
+        { batch_withdrawal_id: payload.batch_withdrawal_id },
+        { $set: { isSentMsg: true } }
+        );
 
-    if (!updatedItem2) {
-      throw new Error('не изменилось значение в БД VerifiedPayoutsModel в поле isSentMsg');
-    }
+        if (!updatedItem2) {
+        throw new Error('не изменилось значение в БД VerifiedPayoutsModel в поле isSentMsg');
+        }
 
       const { language, tlgid } = foundUser;
-      const { currency, amount, fee } = payload;
+    //   const { currency, amount, fee } = payload;
+      const {qtyToSend, coin} = updatedItem2
 
       const type = 'payout';
-      const textQtyCoins = Number((Number(amount) - Number(fee)).toFixed(6));
-      const textToSendUser = textQtyCoins + ' ' + currency.toUpperCase();
+    //   const textQtyCoins = Number((Number(amount) - Number(fee)).toFixed(6));
+      const textToSendUser = qtyToSend + ' ' + coin.toUpperCase();
 
       const tlgResponse = await sendTlgMessage(
         tlgid,
