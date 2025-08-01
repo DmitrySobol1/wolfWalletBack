@@ -112,8 +112,6 @@ export async function executeCheckTask() {
           throw new Error('нет ответа от функции createVerifiedPayout');
         }
 
-        console.log('CHECK !!! ', resp);
-
         if (resp.status == 'created') {
           console.log('step 6 | new obj at VerifiedPayoutsModel created');
 
