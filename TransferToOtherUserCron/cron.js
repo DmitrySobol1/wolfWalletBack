@@ -8,7 +8,7 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 //Сценарий, для проверки, прошел ли трансфер денег от одного клиента другому
 
 
-cron.schedule(
+cron.schedule( 
   '* * * * *',
   async () => {
     console.log('🚀 Запуск задачи2...', new Date().toISOString());
@@ -17,7 +17,10 @@ cron.schedule(
       await executeCheckTask2();
       console.log('✅ Задача2 успешно выполнена');
     } catch (error) {
-      console.error('❌ Ошибка выполнения задачи2:', error);
+      console.error(
+      'Ошибка в CRON 2 > при выполнении файла task.js |',
+      error
+    );
     }
   },
   {
