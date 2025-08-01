@@ -29,7 +29,7 @@ export async function processWebhookPayout(payload) {
       throw new Error('не изменилось значение в БД VerifiedPayoutsModel');
     }
 
-    console.log('Статус=', statusLowerLetter);
+    console.log('Статус = ', statusLowerLetter);
 
     // если статус ==finished и сообщение еще не отправлено, то шлем юзеру сообщение
     if (statusLowerLetter === 'finished' && updatedItem.isSentMsg == false) {
@@ -81,7 +81,7 @@ export async function processWebhookPayout(payload) {
   }
 }
 
-async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
+export async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   try {
     const { title, text } = TEXTS[type]?.[language];
     const fullText = text + textQtyCoins;

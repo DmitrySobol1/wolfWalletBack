@@ -1,8 +1,17 @@
-// для тестов
+// Для тестов:
+// 1) поместить файл env в эту папку
+// 2) расскоменти две строки 'TEST'
+// 3) закомменти 2 строки 'PROD'
+// 4) расскоменти EXECUTE
+
+// TEST
 // import dotenv from 'dotenv';
 // dotenv.config();
 
-//для прода
+// EXECUTE
+// executeCheckTask();
+
+// PROD
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
@@ -13,27 +22,15 @@ import { TEXTS } from './texts.js';
 
 import https from 'https';
 
-import cors from 'cors';
 
 import axios from 'axios';
 
-const PORT = process.env.PORT || 4444;
 
 mongoose
   .connect(process.env.DATABASE_URL)
   .then(() => console.log('DB OK'))
   .catch((err) => console.log('db error:', err));
 
-// const app = express();
-
-// app.use(express.json());
-// app.use(cors());
-
-// TODO: убрат в проде команду
-// executeCheckTask();
-
-// TODO: убрать файл env из этой папки перед заливкой на сервер
-// TODO: нужно ли убирать из этого файла const app и прочее?
 
 export async function executeCheckTask() {
   console.log('Начинаю cron3: проверка прошел ли платеж с Клиент на Мастер...');

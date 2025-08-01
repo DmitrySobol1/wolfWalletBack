@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { createNewRqstPayIn } from '../modelsOperations/models.services.js';
+import {createNewRqstPayIn} from '../modelsOperations/models.services.js';
 
 export async function getAvailableCoins() {
   const response = await axios.get(
@@ -483,4 +483,35 @@ export async function verifyPayout(withdrawal_id, code2fa, token) {
     );
     return;
   }
+}
+
+
+// выполнить перевод другому юзеру
+export async function getTransfer(token, transferID) {
+  try {
+    const response = await axios.get(
+    `https://api.nowpayments.io/v1/sub-partner/transfers/?id=${transferID}`,
+
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+   if (!response) {
+      throw new Error('не пришел ответ от NowPayment в функции getTransfer');
+    }
+
+  return response.data.result;
+
+  }
+  catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getTransfer |',
+      error
+    );
+    return;
+  }
+  
 }

@@ -51,7 +51,7 @@ export async function executeCheckTask() {
 
     const token = await getTokenFromNowPayment();
     if (!token) {
-      throw new Error('не получен токен от функции getBearerToken');
+      throw new Error('не получен токен от функции getTokenFromNowPayment');
     }
 
     console.log('step 2 | token=', token);
@@ -136,7 +136,7 @@ export async function executeCheckTask() {
       }
     }
   } catch (error) {
-    console.error('Ошибка в CRON > checkTransferStatusCron cron.js |', error);
+    console.error('Ошибка в CRON > checkTransferStatusCron task.js |', error);
     return;
   }
 }

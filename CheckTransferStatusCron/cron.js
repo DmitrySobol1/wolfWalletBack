@@ -18,7 +18,7 @@ cron.schedule(
       console.log('✅ Задача1 выполнена');
     } catch (error) {
       console.error(
-      'Ошибка в CRON 1 > при выполнении файла cron.js |',
+      'Ошибка в CRON 1 > при выполнении файла task.js |',
       error
     );
     }
