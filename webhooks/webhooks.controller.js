@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const router = Router();
 
-import { processWebhookPayout } from './webhooks.services'
+import { processWebhookPayout } from './webhooks.services.js'
 
 export const webhooksController = router;
 
