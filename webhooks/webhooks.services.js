@@ -42,10 +42,14 @@ export async function processWebhookPayout(payload) {
       }
 
       // меняем статус, что сообщение отправили
-    const updatedItem = await VerifiedPayoutsModel.findOneAndUpdate(
+    const updatedItem2 = await VerifiedPayoutsModel.findOneAndUpdate(
       { batch_withdrawal_id: payload.batch_withdrawal_id },
       { $set: { isSentMsg: true } }
     );
+
+    if (!updatedItem2) {
+      throw new Error('не изменилось значение в БД VerifiedPayoutsModel в поле isSentMsg');
+    }
 
       const { language, tlgid } = foundUser;
       const { currency, amount, fee } = payload;
