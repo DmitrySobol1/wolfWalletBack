@@ -1,7 +1,10 @@
-import  VerifiedPayoutsModel  from '../models/verifiedPayouts.js';
-import  UserModel  from '../models/user.js';
+import dotenv from 'dotenv';
+dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 import axios from 'axios';
+
+import  VerifiedPayoutsModel  from '../models/verifiedPayouts.js';
+import  UserModel  from '../models/user.js';
 
 
 
@@ -72,8 +75,7 @@ async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   try {
     const { title, text } = TEXTS[type]?.[language];
     const fullText = text + textQtyCoins;
-    const token = process.env.BOT_TOKEN
-    const baseurl = `https://api.telegram.org/bot${token}/sendMessage`;
+    const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
     const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
     const url = baseurl + params;
 
