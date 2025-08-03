@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import {createNewRqstPayIn} from '../modelsOperations/models.services.js';
+import { createNewRqstPayIn } from '../modelsOperations/models.services.js';
 
 export async function getAvailableCoins() {
   const response = await axios.get(
@@ -411,7 +411,6 @@ export async function getMinDeposit(coin) {
       'Ошибка в функции nowPayment.services.js > getMinDeposit |',
       error
     );
-    return;
   }
 }
 
@@ -444,7 +443,6 @@ export async function createpayout(requestData, token) {
       'Ошибка в функции nowPayment.services.js > createpayout |',
       error
     );
-    return;
   }
 }
 
@@ -481,37 +479,141 @@ export async function verifyPayout(withdrawal_id, code2fa, token) {
       'Ошибка в функции nowPayment.services.js > verifyPayout |',
       error
     );
-    return;
   }
 }
-
 
 // выполнить перевод другому юзеру
 export async function getTransfer(token, transferID) {
   try {
     const response = await axios.get(
-    `https://api.nowpayments.io/v1/sub-partner/transfers/?id=${transferID}`,
+      `https://api.nowpayments.io/v1/sub-partner/transfers/?id=${transferID}`,
 
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-   if (!response) {
+    if (!response) {
       throw new Error('не пришел ответ от NowPayment в функции getTransfer');
     }
 
-  return response.data.result;
-
-  }
-  catch (error) {
+    return response.data.result;
+  } catch (error) {
     console.error(
       'Ошибка в функции nowPayment.services.js > getTransfer |',
       error
     );
+  }
+}
+
+//сделать конверсию валют
+export async function createConversion(token, amount, coinFrom, coinTo) {
+  try {
+    if (!token || !amount || !coinFrom || !coinTo) {
+      throw new Error(
+        'не пришел один из аргументов token/amount/coinFrom/coinTo'
+      );
+    }
+
+    const response = await axios.post(
+      'https://api.nowpayments.io/v1/conversion',
+      { amount: amount, from_currency: coinFrom, to_currency: coinTo },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response) {
+      throw new Error(
+        'не пришел ответ от NowPayment в функции createConversion'
+      );
+    }
+
+    if (response.data.result.status === 'WAITING') {
+      return { status: 'ok', id: response.data.result.id };
+    }
+  } catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getcreateConversionTransfer |',
+      error
+    );
+  }
+}
+
+export async function getConversionStatus(token, id) {
+  try {
+    if (!token || !id) {
+      throw new Error('не пришел один из аргументов token/id');
+    }
+
+    const response = await axios.get(
+      `https://api.nowpayments.io/v1/conversion/${id}`,
+
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response) {
+      throw new Error(
+        'не пришел ответ от NowPayment в функции getConversionStatus'
+      );
+    }
+
+    return response.data.result;
+  } catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getcreateConversionTransfer |',
+      error
+    );
     return;
   }
+}
+
+
+export async function depositFromMasterToClient(coinTo, amountTo, userNP, token) {
+  try {
+
+    if (!coinTo || !amountTo || !userNP || !token) {
+      throw new Error('не пришел один из аргументов coinTo|amountTo|userNP|token');
+    }    
   
+  const response = await axios.post(
+    'https://api.nowpayments.io/v1/sub-partner/deposit',
+    { currency: coinTo, amount: amountTo, sub_partner_id: userNP },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.NOWPAYMENTSAPI, 
+      },
+    }
+  );
+
+  if (!response) {
+      throw new Error(
+        'не пришел ответ от NowPayment в функции depositFromMasterToClient'
+      );
+    }
+
+
+
+  if (response.data.result.status === 'PROCESSING') {
+    return { status: 'ok', id: response.data.result.id };
+  } 
+  }
+  catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > depositFromMasterToClient |',
+      error
+    );
+    return;
+  }
 }

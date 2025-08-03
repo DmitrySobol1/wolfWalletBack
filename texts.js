@@ -55,5 +55,19 @@ export const TEXTS = {
     text: 'ein anderer App-Benutzer hat Sie weitergeleitet ',
   }
   },
+  exchange: {
+  ru: {
+    title: 'Обмен завершен',
+    text: 'подробности: ',
+  },
+  en: {
+    title: 'Exchange done',
+    text: 'information:  ',
+  },
+  de: {
+    title: 'Austausch erfolgt',
+    text: 'informationen: ',
+  }
+  },
 
 };
