@@ -17,7 +17,10 @@ cron.schedule(
       await executeCheckTask();
       console.log('✅ Задача3 выполнена');
     } catch (error) {
-      console.error('❌ Ошибка выполнения задачи3:', error);
+      console.error(
+      'Ошибка в CRON 3 > при выполнении файла task.js |',
+      error
+    );
     }
   },
   {
@@ -26,4 +29,4 @@ cron.schedule(
   }
 );
 
-console.log('⏰ Планировщик задач1 инициализирован, check port=',process.env.PORT);
+console.log('⏰ Планировщик задач3 инициализирован, check port=',process.env.PORT);

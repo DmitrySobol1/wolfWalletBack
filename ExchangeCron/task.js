@@ -18,13 +18,17 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 import mongoose from 'mongoose';
 import RqstExchangeModel from '../models/rqstExchange.js';
 
-import { TEXTS } from './texts.js';
-
-import https from 'https';
 
 
-import axios from 'axios';
+import {
+  getTokenFromNowPayment,
+  getTransfer,
+  createConversion,
+  getConversionStatus,
+  depositFromMasterToClient
+} from '../nowPayment/nowPayment.services.js';
 
+import { sendTlgMessage } from '../webhooks/webhooks.services.js'
 
 mongoose
   .connect(process.env.DATABASE_URL)
@@ -33,6 +37,8 @@ mongoose
 
 
 export async function executeCheckTask() {
+  try {
+  
   console.log('Начинаю cron3: проверка прошел ли платеж с Клиент на Мастер...');
 
   const recordsNew = await RqstExchangeModel.find({
@@ -46,23 +52,38 @@ export async function executeCheckTask() {
     return;
   }
 
-  const token = await getBearerToken();
+  // const token = await getBearerToken();
+
+      const token = await getTokenFromNowPayment();
+        if (!token) {
+        throw new Error('не получен токен от функции getTokenFromNowPayment');
+      }
 
   console.log('step 2 | token=', token);
 
   for (const item of recordsNew) {
+
     if (item.status == 'new') {
       const payStatus = await getTransfer(token, item.id_clientToMaster);
 
-      if (payStatus[0].status.toLowerCase() == 'finished') {
-        //провести обмен
+        if (!payStatus) {
+        throw new Error('не получен токен от функции getTransfer');
+      }
+      
 
+      if (payStatus[0].status.toLowerCase() == 'finished') {
+
+        //провести обмен
         const conversionId = await createConversion(
           token,
           item.amountFrom,
           item.coinFrom,
           item.coinTo
         );
+
+        if (!conversionId) {
+          throw new Error('не получен токен от функции createConversion');
+        }
 
         if (conversionId.status === 'ok') {
           const updates = {
@@ -76,29 +97,41 @@ export async function executeCheckTask() {
             { new: true }
           );
 
+          if (!updatedItem) {
+            throw new Error('не сохранилось значение в БД RqstExchangeModel ');
+          }
+
           console.log('step 3 | успех', updatedItem);
-        } else {
-          console.log('step 3 | ошибка');
-          return res.json({ success: false });
-        }
+        } 
+          
       }
     }
 
     if (item.status == 'exchangewaiting') {
+      
       const conversionStatus = await getConversionStatus(
         token,
         item.id_exchange
       );
 
-      if (conversionStatus.status.toLowerCase() == 'finished') {
-        //перевести с Мастер на Клиенту монету, в которую произошел обмен
+      if (!conversionStatus) {
+        throw new Error('не получен токен от функции getConversionStatus');
+      }
 
+
+      if (conversionStatus.status.toLowerCase() == 'finished') {
+
+        //перевести с Мастер на Клиенту монету, в которую произошел обмен
         const depositId = await depositFromMasterToClient(
           item.coinTo,
           item.amountTo,
           String(item.userNP),
           token
         );
+
+        if (!depositId) {
+        throw new Error('не получен токен от функции depositFromMasterToClient');
+      }
 
         if (depositId.status === 'ok') {
           const updates = {
@@ -112,29 +145,45 @@ export async function executeCheckTask() {
             { new: true }
           );
 
+          if (!updatedItem) {
+            throw new Error('не сохранилось значение в БД RqstExchangeModel ');
+          }
+
           console.log('step 4 | успех', updatedItem);
-        } else {
-          console.log('step 4 | ошибка');
-          return res.json({ success: false });
-        }
+        } 
       }
     }
 
     if (item.status == 'trtMasterToClientWaiting') {
+      
       const payStatus = await getTransfer(token, item.id_masterToClient);
 
-      if (payStatus[0].status.toLowerCase() == 'finished') {
-        //отправить оповещение юзеру
+      if (!payStatus) {
+        throw new Error('не получен токен от функции getTransfer');
+      }
 
+      if (payStatus[0].status.toLowerCase() == 'finished') {
+
+        //отправить оповещение юзеру
         const textExchangeInfo = `${item.amountFrom} ${item.coinFrom} >> ${item.amountTo} ${item.coinTo}`;
 
-        sendTlgMessage(item.tlgid, item.language, textExchangeInfo);
+
+        const sendingMsgResponse = await sendTlgMessage(item.tlgid, item.language, 'exchange', textExchangeInfo);
+
+        if (sendingMsgResponse.status != 'ok') {
+         throw new Error('не отправлено сообщение юзеру в Тлг');
+        }
 
         const updatedItem = await RqstExchangeModel.findOneAndUpdate(
           { _id: item._id },
           { $set: { status: 'done' } },
           { new: true }
         );
+
+         if (!updatedItem) {
+            throw new Error('не сохранилось значение в БД RqstExchangeModel ');
+          }
+
         console.log('step 5 | успех', updatedItem);
       }
     }
@@ -142,116 +191,9 @@ export async function executeCheckTask() {
     return { success: true };
   }
 }
-
-//получить bearer token
-async function getBearerToken() {
-  const response = await axios.post(
-    'https://api.nowpayments.io/v1/auth',
-    {
-      email: process.env.NOWPAYMENTSEMAIL,
-      password: process.env.NOWPAYMENTSPASSWD,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-  return response.data.token;
-}
-
-//получить инфо о платеже
-async function getTransfer(token, transferID) {
-  const response = await axios.get(
-    `https://api.nowpayments.io/v1/sub-partner/transfers/?id=${transferID}`,
-
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return response.data.result;
-}
-
-//сделать конверсию валют
-async function createConversion(token, amount, coinFrom, coinTo) {
-  const response = await axios.post(
-    'https://api.nowpayments.io/v1/conversion',
-    { amount: amount, from_currency: coinFrom, to_currency: coinTo },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-  //   return {result: response.data.result, id:response.data.result} ;
-
-  if (response.data.result.status === 'WAITING') {
-    // console.log('из функции createConversion  WAITING', response.data.result.status)
-    return { status: 'ok', id: response.data.result.id };
-  } else {
-    // console.log('из функции createConversion  error', response.data.result)
-    return { status: 'error' };
+  catch (error) {
+    console.error('Ошибка в CRON > ExchangeCron task.js |', error);
+    return;
   }
 }
 
-//получить инфо о статусе корвертации
-async function getConversionStatus(token, id) {
-  const response = await axios.get(
-    `https://api.nowpayments.io/v1/conversion/${id}`,
-
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return response.data.result;
-}
-
-async function depositFromMasterToClient(coinTo, amountTo, userNP, token) {
-  const response = await axios.post(
-    'https://api.nowpayments.io/v1/sub-partner/deposit',
-    { currency: coinTo, amount: amountTo, sub_partner_id: userNP },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.NOWPAYMENTSAPI,
-      },
-    }
-  );
-  //   return {result: response.data.result, id:response.data.result} ;
-
-  if (response.data.result.status === 'PROCESSING') {
-    // console.log('из функции createConversion  WAITING', response.data.result.status)
-    return { status: 'ok', id: response.data.result.id };
-  } else {
-    // console.log('из функции createConversion  error', response.data.result)
-    return { status: 'error' };
-  }
-}
-
-function sendTlgMessage(tlgid, language, textExchangeInfo) {
-  const { title } = TEXTS[language];
-  //   const fullText = text + textQtyCoins;
-
-  const params = `?chat_id=${tlgid}&text=${title}%0A${textExchangeInfo}`;
-  const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
-
-  const url = baseurl + params;
-
-  https
-    .get(url, (response) => {
-      let data = '';
-
-      response.on('end', () => {
-        console.log(JSON.parse(data)); // Выводим результат
-      });
-    })
-    .on('error', (err) => {
-      console.error('Ошибка:', err);
-    });
-}
