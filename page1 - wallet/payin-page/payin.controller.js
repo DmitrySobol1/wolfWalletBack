@@ -10,6 +10,8 @@ import {
   createPayAdress,
 } from '../../nowPayment/nowPayment.services.js';
 
+import { createNewRqstPayIn } from '../../modelsOperations/models.services.js'
+
 const router = Router();
 
 export const payinController = router;
@@ -35,10 +37,18 @@ router.get('/get_available_coins', async (req, res) => {
 // получение информации, чтобы вернуть адресс и мин сумму пополнения, создать ЛК юзера в NP ?
 router.post('/get_info_for_payinadress', async (req, res) => {
   try {
-    const user = await UserModel.findOne({ tlgid: req.body.tlgid });
+
+    
+    
+    const { tlgid, coin  }  = req.body
+
+    const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
       return res.json({ statusBE: 'notOk' });
     }
+
+    
+
     const { ...userData } = user._doc;
 
     const token = await getTokenFromNowPayment();
@@ -47,14 +57,14 @@ router.post('/get_info_for_payinadress', async (req, res) => {
     }
 
     if (userData.nowpaymentid === 0) {
-      const nowpaymentid = await createUserInNowPayment(token, req.body.tlgid);
+      const nowpaymentid = await createUserInNowPayment(token, tlgid);
       if (!nowpaymentid) {
         return res.json({ statusBE: 'notOk' });
       }
 
       //записать nowpaymentid в БД
       const updatedUser = await UserModel.findOneAndUpdate(
-        { tlgid: req.body.tlgid },
+        { tlgid: tlgid },
         { $set: { nowpaymentid: nowpaymentid } },
         { new: true } // Вернуть обновленную запись
       );
@@ -64,29 +74,40 @@ router.post('/get_info_for_payinadress', async (req, res) => {
       const { ...userData } = updatedUser._doc;
     }
 
-    const minAmount = await getMinAmountForDeposit(req.body.coin);
+    const minAmount = await getMinAmountForDeposit(coin);
     if (!minAmount) {
       return res.json({ statusBE: 'notOk' });
     }
 
+    
     //чтобы исключить колебание мин кол-ва, пока обрабатывается запрос
     const minAmountPlus5Percent = minAmount + minAmount * 0.05;
 
-    const payAdress = await createPayAdress(
+    const payAdressObj = await createPayAdress(
       token,
-      req.body.coin,
+      coin,
       minAmountPlus5Percent,
       userData.nowpaymentid,
-      req.body.tlgid
+      // tlgid
     );
-    if (!payAdress) {
+    if (!payAdressObj) {
       return res.json({ statusBE: 'notOk' });
     }
 
+    const actualPayAdress = payAdressObj.pay_address
+
+
+    const modelResp = await createNewRqstPayIn(payAdressObj, tlgid, userData.nowpaymentid);
+
+    if (!modelResp) {
+      return res.json({ statusBE: 'notOk' });
+    }
+    
     const objToFront = {
       minAmount,
-      payAdress,
+      payAdress: actualPayAdress,
     };
+    
 
     return res.json(objToFront);
   } catch (err) {

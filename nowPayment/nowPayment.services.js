@@ -94,7 +94,6 @@ export async function createPayAdress(
   coin,
   minAmount,
   nowpaymentid,
-  tlgid
 ) {
   try {
     // 1. Валидация входных параметров
@@ -146,8 +145,12 @@ export async function createPayAdress(
       throw new Error('Invalid response structure from NowPayments API');
     }
 
-    await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
-    return response.data.result.pay_address;
+    console.log('HEEEERE', response.data.result )
+
+    // await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
+    // return response.data.result.pay_address;
+    return response.data.result;
+    
   } catch (error) {
     console.error('Error in createPayAdress:', {
       error: error.response?.data || error.message,
@@ -197,13 +200,16 @@ export async function getPayoutFee(coin, amount) {
       }
     );
 
+     if (!response) {
+      throw new Error('не пришел ответ от NowPayment');
+    }
+
     return response;
   } catch (error) {
-    console.error('Error in getPayoutFee:', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to create user: ${error.message}`);
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getPayoutFee |',
+      error
+    );
   }
 }
 
@@ -612,6 +618,45 @@ export async function depositFromMasterToClient(coinTo, amountTo, userNP, token)
   catch (error) {
     console.error(
       'Ошибка в функции nowPayment.services.js > depositFromMasterToClient |',
+      error
+    );
+    return;
+  }
+}
+
+
+//получить инфо о пополнении баланса Юзера
+export async function getPaymentStatus(paymentID) {
+  try {
+
+    if (!paymentID) {
+      throw new Error(
+        'нет павраметра paymentID'
+      );
+    }
+
+  
+  const response = await axios.get(
+    `https://api.nowpayments.io/v1/payment/${paymentID}`,
+
+    {
+      headers: {
+        'x-api-key': process.env.NOWPAYMENTSAPI,
+      },
+    }
+  );
+
+   if (!response) {
+      throw new Error(
+        'не пришел ответ от NowPayment в функции getPaymentStatus'
+      );
+    }
+
+  return { result: 'ok', payStatus: response.data.payment_status };
+  }
+   catch (error) {
+    console.error(
+      'Ошибка в функции nowPayment.services.js > getPaymentStatus |',
       error
     );
     return;

@@ -3,14 +3,74 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 import axios from 'axios';
 
-import  VerifiedPayoutsModel  from '../models/verifiedPayouts.js';
-import  UserModel  from '../models/user.js';
+import crypto from 'crypto';
 
-
-
-
+import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
+import UserModel from '../models/user.js';
+import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 
 import { TEXTS } from '../texts.js';
+
+export async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
+  try {
+    const { title, text } = TEXTS[type]?.[language];
+    const fullText = text + textQtyCoins;
+    const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+    const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
+    const url = baseurl + params;
+
+    const response = await axios.get(url);
+
+    if (!response) {
+      throw new Error('сообщение в Telegram не отправлено');
+    }
+
+    console.log(response.data); // выводим результат
+    return { status: 'ok' };
+  } catch (error) {
+    console.error(
+      'Ошибка в webhooks.services.js в функции sendTlgMessage |',
+      error
+    );
+    return;
+  }
+}
+
+
+
+export function verifyNowPaymentsSignature(payload, receivedSignature, secretKey) {
+  if (!receivedSignature || !secretKey) return false;
+
+  const hmac = crypto.createHmac('sha512', secretKey);
+  hmac.update(JSON.stringify(safeSort(payload)));
+  const expectedSignature = hmac.digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(receivedSignature),
+    Buffer.from(expectedSignature)
+  );
+}
+
+function safeSort(obj) {
+  const seen = new WeakSet();
+  const sort = (obj) => {
+    if (obj !== Object(obj)) return obj;
+    if (seen.has(obj)) return '[Circular]';
+    seen.add(obj);
+
+    return Object.keys(obj)
+      .sort()
+      .reduce((result, key) => {
+        result[key] = sort(obj[key]);
+        return result;
+      }, {});
+  };
+  return sort(obj);
+}
+
+
+
+
 
 // функция обработки вывод средств (payout)
 export async function processWebhookPayout(payload) {
@@ -42,21 +102,23 @@ export async function processWebhookPayout(payload) {
       }
 
       // меняем статус, что сообщение отправили
-        const updatedItem2 = await VerifiedPayoutsModel.findOneAndUpdate(
+      const updatedItem2 = await VerifiedPayoutsModel.findOneAndUpdate(
         { batch_withdrawal_id: payload.batch_withdrawal_id },
         { $set: { isSentMsg: true } }
-        );
+      );
 
-        if (!updatedItem2) {
-        throw new Error('не изменилось значение в БД VerifiedPayoutsModel в поле isSentMsg');
-        }
+      if (!updatedItem2) {
+        throw new Error(
+          'не изменилось значение в БД VerifiedPayoutsModel в поле isSentMsg'
+        );
+      }
 
       const { language, tlgid } = foundUser;
-    //   const { currency, amount, fee } = payload;
-      const {qtyToSend, coin} = updatedItem2
+      //   const { currency, amount, fee } = payload;
+      const { qtyToSend, coin } = updatedItem2;
 
       const type = 'payout';
-    //   const textQtyCoins = Number((Number(amount) - Number(fee)).toFixed(6));
+      //   const textQtyCoins = Number((Number(amount) - Number(fee)).toFixed(6));
       const textToSendUser = qtyToSend + ' ' + coin.toUpperCase();
 
       const tlgResponse = await sendTlgMessage(
@@ -69,8 +131,6 @@ export async function processWebhookPayout(payload) {
       if (tlgResponse.status != 'ok') {
         throw new Error('ошибка в функции sendTlgMessage ');
       }
-
-
     }
   } catch (error) {
     console.error(
@@ -81,27 +141,48 @@ export async function processWebhookPayout(payload) {
   }
 }
 
-export async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
+export async function processWebhookStock(payload) {
   try {
-    const { title, text } = TEXTS[type]?.[language];
-    const fullText = text + textQtyCoins;
-    const baseurl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
-    const params = `?chat_id=${tlgid}&text=${title}%0A${fullText}`;
-    const url = baseurl + params;
+    console.log('Обрабатываю:', payload);
 
-    const response = await axios.get(url);
+    const statusLowerLetter = payload.status.toLowerCase();
 
-    if (!response) {
-      throw new Error('сообщение в Telegram не отправлено');
+    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+      { batch_withdrawal_id: payload.batch_withdrawal_id },
+      { $set: { status: statusLowerLetter } }
+    );
+
+    if (!updatedItem) {
+      throw new Error('не изменилось значение в БД RqstStockMarketOrderModel');
     }
 
-    console.log(response.data); // выводим результат
-    return { status: 'ok' };
+    console.log('Статус=', payload.status.toLowerCase());
+
+    if (payload.status.toLowerCase() === 'finished') {
+      const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+        { batch_withdrawal_id: payload.batch_withdrawal_id },
+        { $set: { status: 'CoinReceivedByStock' } }
+      );
+
+      if (!updatedItem) {
+        throw new Error(
+          'не изменилось значение в БД RqstStockMarketOrderModel'
+        );
+      }
+
+      console.log('ответ из функции обработки вебхука: все ок!')
+    }
   } catch (error) {
     console.error(
-      'Ошибка в webhooks.services.js в функции sendTlgMessage |',
+      'Ошибка в webhooks.services.js в функции processWebhookStock',
       error
     );
     return;
   }
 }
+
+
+
+
+
+

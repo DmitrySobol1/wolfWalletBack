@@ -69,5 +69,19 @@ export const TEXTS = {
     text: 'informationen: ',
   }
   },
+  market: {
+    ru: {
+    title: 'Инфо от биржи:',
+    text: 'операция на бирже прошла успешно',
+  },
+  en: {
+    title: 'The crypto stock info:',
+    text: 'operation was successfully done ',
+  },
+  de: {
+    title: 'Informationen zu Krypto-Aktien:',
+    text: 'Die Operation wurde erfolgreich durchgeführt',
+  }
+  }
 
 };

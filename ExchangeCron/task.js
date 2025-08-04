@@ -52,7 +52,6 @@ export async function executeCheckTask() {
     return;
   }
 
-  // const token = await getBearerToken();
 
       const token = await getTokenFromNowPayment();
         if (!token) {
@@ -67,7 +66,7 @@ export async function executeCheckTask() {
       const payStatus = await getTransfer(token, item.id_clientToMaster);
 
         if (!payStatus) {
-        throw new Error('не получен токен от функции getTransfer');
+        throw new Error('не получен ответ от функции getTransfer');
       }
       
 

@@ -27,6 +27,7 @@ export async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
     });
 
     const rqst = await doc.save();
+    return rqst
   } catch (err) {
     console.log(err);
   }
@@ -180,6 +181,32 @@ export async function createVerifiedPayout(data) {
   } catch (error) {
     console.error(
       'Ошибка в функции models.services.js > createVerifiedPayout |',
+      error
+    );
+    return;
+  }
+}
+
+
+
+export async function getOurComissionMarket() {
+  try {
+    
+     const response = await ComissionStockMarketModel.findOne({
+          coin: 'ourComission'
+        });
+
+      if (!response) {
+       throw new Error('не получен ответ в БД ComissionStockMarketModel ');
+      }   
+
+      const ourComission = response.qty;
+
+      return ({ourComission:ourComission});
+
+  } catch (error) {
+    console.error(
+      'Ошибка в функции models.services.js > getOurComissionMarket |',
       error
     );
     return;

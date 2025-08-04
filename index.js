@@ -1598,92 +1598,92 @@ app.post('/api/save_new_stockAdress', async (req, res) => {
 //   }
 // });
 
-//FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FORSTOCK
-// для обработки "прихода денег на биржу"
-app.post('/api/webhook_forstock', async (req, res) => {
-  try {
-    const payload = req.body;
-    console.log('Получен вебхук payout:', payload);
+// //FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FORSTOCK
+// // для обработки "прихода денег на биржу"
+// app.post('/api/webhook_forstock', async (req, res) => {
+//   try {
+//     const payload = req.body;
+//     console.log('Получен вебхук payout:', payload);
 
-    // 1. Проверяем обязательный заголовок
-    const receivedSignature = req.headers['x-nowpayments-sig'];
-    if (!receivedSignature) {
-      console.log('Отсутствует заголовок подписи');
-      return res.status(400).json({ error: 'Missing signature header' });
-    }
+//     // 1. Проверяем обязательный заголовок
+//     const receivedSignature = req.headers['x-nowpayments-sig'];
+//     if (!receivedSignature) {
+//       console.log('Отсутствует заголовок подписи');
+//       return res.status(400).json({ error: 'Missing signature header' });
+//     }
 
-    // 2. Безопасная сортировка объекта
-    const safeSort = (obj) => {
-      const seen = new WeakSet();
-      const sort = (obj) => {
-        if (obj !== Object(obj)) return obj;
-        if (seen.has(obj)) return '[Circular]';
-        seen.add(obj);
+//     // 2. Безопасная сортировка объекта
+//     const safeSort = (obj) => {
+//       const seen = new WeakSet();
+//       const sort = (obj) => {
+//         if (obj !== Object(obj)) return obj;
+//         if (seen.has(obj)) return '[Circular]';
+//         seen.add(obj);
 
-        return Object.keys(obj)
-          .sort()
-          .reduce((result, key) => {
-            result[key] = sort(obj[key]);
-            return result;
-          }, {});
-      };
-      return sort(obj);
-    };
+//         return Object.keys(obj)
+//           .sort()
+//           .reduce((result, key) => {
+//             result[key] = sort(obj[key]);
+//             return result;
+//           }, {});
+//       };
+//       return sort(obj);
+//     };
 
-    // 3. Генерация и проверка подписи
-    const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
-    hmac.update(JSON.stringify(safeSort(payload)));
-    const expectedSignature = hmac.digest('hex');
+//     // 3. Генерация и проверка подписи
+//     const hmac = crypto.createHmac('sha512', process.env.IPN_SECRET_KEY);
+//     hmac.update(JSON.stringify(safeSort(payload)));
+//     const expectedSignature = hmac.digest('hex');
 
-    // 4. Безопасное сравнение подписей
-    if (
-      !crypto.timingSafeEqual(
-        Buffer.from(receivedSignature),
-        Buffer.from(expectedSignature)
-      )
-    ) {
-      console.log('Неверная подпись');
-      return res.status(403).json({ error: 'Invalid signature' });
-    }
+//     // 4. Безопасное сравнение подписей
+//     if (
+//       !crypto.timingSafeEqual(
+//         Buffer.from(receivedSignature),
+//         Buffer.from(expectedSignature)
+//       )
+//     ) {
+//       console.log('Неверная подпись');
+//       return res.status(403).json({ error: 'Invalid signature' });
+//     }
 
-    console.log('Подписи совпадают');
+//     console.log('Подписи совпадают');
 
-    // 5. Обработка вебхука (с обработкой ошибок)
-    try {
-      res.status(200).json({ status: 'success' });
-      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+//     // 5. Обработка вебхука (с обработкой ошибок)
+//     try {
+//       res.status(200).json({ status: 'success' });
+//       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
 
-      await processWebhookStock(payload);
-    } catch (processError) {
-      console.error('Ошибка обработки:', processError);
-      res.status(500).json({ error: 'Processing failed' });
-    }
-  } catch (error) {
-    console.error('Ошибка обработки вебхука:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+//       await processWebhookStock(payload);
+//     } catch (processError) {
+//       console.error('Ошибка обработки:', processError);
+//       res.status(500).json({ error: 'Processing failed' });
+//     }
+//   } catch (error) {
+//     console.error('Ошибка обработки вебхука:', error);
+//     res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// });
 
 // функция обработки вывод средств (payout)
-async function processWebhookStock(payload) {
-  console.log('Обрабатываю:', payload);
+// async function processWebhookStock(payload) {
+//   console.log('Обрабатываю:', payload);
 
-  const statusLowerLetter = payload.status.toLowerCase();
+//   const statusLowerLetter = payload.status.toLowerCase();
 
-  const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-    { batch_withdrawal_id: payload.batch_withdrawal_id },
-    { $set: { status: statusLowerLetter } }
-  );
+//   const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+//     { batch_withdrawal_id: payload.batch_withdrawal_id },
+//     { $set: { status: statusLowerLetter } }
+//   );
 
-  console.log('Статус=', payload.status.toLowerCase());
+//   console.log('Статус=', payload.status.toLowerCase());
 
-  if (payload.status.toLowerCase() === 'finished') {
-    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-      { batch_withdrawal_id: payload.batch_withdrawal_id },
-      { $set: { status: 'CoinReceivedByStock' } }
-    );
-  }
-}
+//   if (payload.status.toLowerCase() === 'finished') {
+//     const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+//       { batch_withdrawal_id: payload.batch_withdrawal_id },
+//       { $set: { status: 'CoinReceivedByStock' } }
+//     );
+//   }
+// }
 
 //FIXME: Этот эндопоинт постаить в env: WEBHOOKADRESS_FROMSTOCKTOUSER
 
