@@ -151,7 +151,7 @@ export async function processWebhookPayin(payload) {
 
    console.log('Обрабатываю:', payload);
 
-    const status = payload.status?.toLowerCase();
+    const status = payload.payment_status?.toLowerCase();
     const paymentId = payload.payment_id;
     const amount = payload.outcome_amount
     const currency = payload.price_currency
