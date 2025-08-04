@@ -165,10 +165,13 @@ export async function processWebhookStock(payload) {
 
     console.log('Статус=', status);
 
-    if (payload.status === 'finished') {
+    if (status === 'finished') {
       const foundItem = await RqstStockMarketOrderModel.findOne({
         batch_withdrawal_id: batch_id,
       });
+
+      console.log('проверка foundItem=', foundItem)
+      console.log('проверка2 foundItem.isOperated=', foundItem.isOperated)
 
       if (!foundItem) {
         throw new Error('не нашел в БД RqstStockMarketOrderModel');
