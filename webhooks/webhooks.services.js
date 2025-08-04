@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
 import UserModel from '../models/user.js';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
+import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
 
 import { TEXTS } from '../texts.js';
 
@@ -139,7 +140,8 @@ export async function processWebhookPayout(payload) {
   }
 }
 
-export async function processWebhookStock(payload) {
+// для обработки "хука прихода денег на биржу" (при маркет ордере) 
+export async function processWebhookStock(payload) { 
   try {
     console.log('Обрабатываю:', payload);
 
@@ -158,7 +160,6 @@ export async function processWebhookStock(payload) {
       const foundItem = await RqstStockMarketOrderModel.findOne({
         batch_withdrawal_id: batch_id,
       });
-
 
       if (!foundItem) {
         throw new Error('не нашел в БД RqstStockMarketOrderModel');
@@ -189,6 +190,57 @@ export async function processWebhookStock(payload) {
   } catch (error) {
     console.error(
       'Ошибка в webhooks.services.js в функции processWebhookStock',
+      error
+    );
+    return;
+  }
+}
+
+// для обработки "хука прихода денег на биржу" (при лимит ордере) 
+export async function processWebhookStockLimit(payload) {
+  try {
+    console.log('Обрабатываю:', payload);
+
+    const status = payload.status?.toLowerCase();
+    const batch_id = payload.batch_withdrawal_id;
+
+
+    console.log('Статус=', payload.status.toLowerCase());
+
+    if (status === 'finished') {
+      const foundItem = await RqstStockLimitOrderModel.findOne({
+        batch_withdrawal_id: batch_id,
+      });
+
+      if (!foundItem) {
+        throw new Error('не нашел в БД RqstStockLimitOrderModel');
+      }
+
+      if (foundItem.isOperated == false) {
+        const updatedItem = await RqstStockLimitOrderModel.findOneAndUpdate(
+          { batch_withdrawal_id: batch_id },
+          { $set: { status: 'CoinReceivedByStock', isOperated: true } }
+        );
+
+        if (!updatedItem) {
+          throw new Error(
+            'не изменилось значение в БД RqstStockMarketOrderModel'
+          );
+        }
+
+        console.log(
+          'из функции обработки вебхука: пришел хук finished, значение isOperated поменял'
+        );
+        return;
+      }
+
+      console.log(
+        'ответ из функции обработки вебхука: пришел повторный хук finished, ничего не менял!'
+      );
+    }
+  } catch (error) {
+    console.error(
+      'Ошибка в webhooks.services.js в функции processWebhookStockLimit',
       error
     );
     return;

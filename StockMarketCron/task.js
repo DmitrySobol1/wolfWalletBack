@@ -18,6 +18,7 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 import mongoose from 'mongoose';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import StockAdressesModel from '../models/stockAdresses.js';
+import { getOurComissionMarket } from '../modelsOperations/models.services.js';
 
 import speakeasy from 'speakeasy';
 
@@ -32,7 +33,6 @@ import {
   createPayAdress,
 } from '../nowPayment/nowPayment.services.js';
 
-import { getOurComissionMarket } from '../modelsOperations/models.services.js';
 
 import { sendTlgMessage } from '../webhooks/webhooks.services.js';
 
@@ -82,6 +82,7 @@ export async function executeCheckTask() {
     console.log('step 2 | token=', token);
 
     for (const item of recordsNew) {
+      
       if (item.status == 'new') {
         const payStatus = await getTransfer(token, item.id_clientToMaster);
 
@@ -188,7 +189,7 @@ export async function executeCheckTask() {
             amountSentToStockValue
           );
 
-          await RqstStockMarketOrderModel.findOneAndUpdate(
+          const modelOperationResponse = await RqstStockMarketOrderModel.findOneAndUpdate(
             { _id: item._id },
             {
               $set: {
@@ -199,7 +200,7 @@ export async function executeCheckTask() {
             { new: true }
           );
 
-          if (!ourComissionResponse) {
+          if (!modelOperationResponse) {
             throw new Error('не получен ответ от бд RqstStockMarketOrderModel');
           }
 
@@ -363,10 +364,7 @@ export async function executeCheckTask() {
           chainToSendToNp
         );
 
-        if (
-          !getWithdrawalInfoResult ||
-          getWithdrawalInfoResult.statusFn != 'ok'
-        ) {
+        if (!getWithdrawalInfoResult || getWithdrawalInfoResult.statusFn != 'ok' ) {
           throw new Error('ошибка в функции getWithdrawalInfo');
         }
 
@@ -457,7 +455,7 @@ export async function executeCheckTask() {
           coinToSendToNpFull,
           amountToSendToNp,
           item.userNP,
-          'market'
+          'marketOrLimit'
         
         );
 
@@ -493,7 +491,7 @@ export async function executeCheckTask() {
 
         if (!makeWithdrawFromStockToNpResult) {
           throw new Error(
-            'нет ответа от функции makeWithdrawFromStockToNpResult'
+            'нет ответа от функции makeWithdrawFromStockToNp'
           );
         }
 
@@ -519,6 +517,7 @@ export async function executeCheckTask() {
         );
       }
 
+      
       if (item.status == 'stockSentCoinToNp') {
         console.log('step 17 | старт проверки, пришли ли бабки юзеру с биржи');
 

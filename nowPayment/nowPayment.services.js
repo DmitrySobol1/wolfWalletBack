@@ -120,7 +120,7 @@ export async function createPayAdress(
     
     let callBackUrl = process.env.CALLBACKURL_FOR_PAYIN
 
-    if (type == 'market') {
+    if (type == 'marketOrLimit') {
       callBackUrl = 'https://nowpayments.io'
     }
 

@@ -8,6 +8,7 @@ const router = Router();
 import {
   processWebhookPayout,
   processWebhookStock,
+  processWebhookStockLimit,
   verifyNowPaymentsSignature,
 } from './webhooks.services.js';
 
@@ -16,11 +17,10 @@ export const webhooksController = router;
 // для обработки "вывода" средств
 router.post('/webhook', async (req, res) => {
   try {
-    
     const payload = req.body;
     const receivedSignature = req.headers['x-nowpayments-sig'];
     const secretKey = process.env.IPN_SECRET_KEY;
-    
+
     console.log('Получен вебхук "для вывода" payout:', payload);
 
     if (!receivedSignature) {
@@ -28,8 +28,12 @@ router.post('/webhook', async (req, res) => {
       throw new Error('отсутствует подпись в header');
     }
 
-    const isValid = verifyNowPaymentsSignature(payload,receivedSignature,secretKey);
-    
+    const isValid = verifyNowPaymentsSignature(
+      payload,
+      receivedSignature,
+      secretKey
+    );
+
     if (!isValid) {
       console.log('Неверная подпись');
       throw new Error('неверная подпись');
@@ -46,14 +50,13 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-
-// для обработки "прихода денег на биржу" (WEBHOOKADRESS_FORSTOCK в env)
+// для обработки "прихода денег на биржу" (при маркет ордере) (WEBHOOKADRESS_FORSTOCK в env)
 router.post('/webhook_forstock', async (req, res) => {
   try {
     const payload = req.body;
     const receivedSignature = req.headers['x-nowpayments-sig'];
     const secretKey = process.env.IPN_SECRET_KEY;
-    
+
     console.log('Получен вебхук forstock market:', payload);
 
     if (!receivedSignature) {
@@ -74,17 +77,58 @@ router.post('/webhook_forstock', async (req, res) => {
     console.log('Подписи совпадают');
 
     const status = payload.status?.toLowerCase();
-    if (status == 'finished'){
-
+    if (status == 'finished') {
       //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
       await processWebhookStock(payload);
     } else {
-        console.log('статус не finished, не обрабатываем')
+      console.log('статус не finished, не обрабатываем');
     }
-
   } catch (error) {
     console.error(
-      'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу',
+      'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу при маркет ордере',
+      error
+    );
+  }
+});
+
+
+// для обработки "прихода денег на биржу" (при лимит ордере) (WEBHOOKADRESS_FORSTOCK_LIMIT в env)
+app.post('/webhook_forstock_limit', async (req, res) => {
+  try {
+    const payload = req.body;
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    const secretKey = process.env.IPN_SECRET_KEY;
+
+    // const payload = req.body;
+    console.log('Получен вебхук forstock limit:', payload);
+
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      throw new Error('отсутствует подпись в header');
+    }
+
+    const isValid = verifyNowPaymentsSignature(
+      payload,
+      receivedSignature,
+      secretKey
+    );
+    if (!isValid) {
+      console.log('Неверная подпись');
+      throw new Error('неверная подпись');
+    }
+
+    console.log('Подписи совпадают');
+
+    const status = payload.status?.toLowerCase();
+    if (status == 'finished') {
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+      await processWebhookStockLimit(payload);
+    } else {
+      console.log('статус не finished, не обрабатываем');
+    }
+  } catch (error) {
+    console.error(
+      'Ошибка в /wh/webhook_forstock_limit, вебхук для обработки "прихода денег на биржу при лимит ордере',
       error
     );
   }

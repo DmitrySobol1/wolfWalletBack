@@ -212,3 +212,30 @@ export async function getOurComissionMarket() {
     return;
   }
 }
+
+
+
+// получить нашу комиссию за сделку - Лимит
+export async function getOurComissionLimit() {
+  try {
+    
+     const response = await ComissionStockMarketModel.findOne({
+          coin: 'ourComission'
+        });
+
+      if (!response) {
+       throw new Error('не получен ответ в БД ComissionStockMarketModel ');
+      }   
+
+      const ourComission = response.qty;
+
+      return ({ourComission:ourComission});
+
+  } catch (error) {
+    console.error(
+      'Ошибка в функции models.services.js > getOurComissionLimit |',
+      error
+    );
+    return;
+  }
+}
