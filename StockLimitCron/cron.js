@@ -17,7 +17,10 @@ cron.schedule(
       await executeCheckTask();
       console.log('✅ Задача5 выполнена');
     } catch (error) {
-      console.error('❌ Ошибка выполнения задачи5:', error);
+      console.error(
+      'Ошибка в CRON 5 stock limit cron > при выполнении файла task.js |',
+      error
+    );
     }
   },
   {

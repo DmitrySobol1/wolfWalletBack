@@ -72,15 +72,29 @@ export const TEXTS = {
   market: {
     ru: {
     title: 'Инфо от биржи:',
-    text: 'операция на бирже прошла успешно',
+    text: 'маркет ордер исполнен',
   },
   en: {
     title: 'The crypto stock info:',
-    text: 'operation was successfully done ',
+    text: 'market order have been done',
   },
   de: {
     title: 'Informationen zu Krypto-Aktien:',
-    text: 'Die Operation wurde erfolgreich durchgeführt',
+    text: 'marktorder wurde ausgeführt',
+  }
+  },
+  limit: {
+    ru: {
+    title: 'Инфо от биржи:',
+    text: 'лимитный ордер исполнен',
+  },
+  en: {
+    title: 'The crypto stock info:',
+    text: 'limit order have been done',
+  },
+  de: {
+    title: 'Informationen zu Krypto-Aktien:',
+    text: 'limit-Order wurde ausgeführt.',
   }
   }
 
