@@ -73,8 +73,15 @@ router.post('/webhook_forstock', async (req, res) => {
 
     console.log('Подписи совпадают');
 
-    //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
-    await processWebhookStock(payload);
+    const status = payload.status?.toLowerCase();
+    if (status == 'finished'){
+
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+      await processWebhookStock(payload);
+    } else {
+        console.log('статус не finished, не обрабатываем')
+    }
+
   } catch (error) {
     console.error(
       'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу',

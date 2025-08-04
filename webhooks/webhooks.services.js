@@ -152,26 +152,13 @@ export async function processWebhookStock(payload) {
       );
     }
 
-    // const statusLowerLetter = payload.status.toLowerCase();
-
-    // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-    //   { batch_withdrawal_id: payload.batch_withdrawal_id },
-    //   { $set: { status: statusLowerLetter } }
-    // );
-
-    // if (!updatedItem) {
-    //   throw new Error('не изменилось значение в БД RqstStockMarketOrderModel');
-    // }
-
-    console.log('Статус=', status);
+    console.log('Статус из FN process=', status);
 
     if (status === 'finished') {
       const foundItem = await RqstStockMarketOrderModel.findOne({
         batch_withdrawal_id: batch_id,
       });
 
-      console.log('проверка foundItem=', foundItem)
-      console.log('проверка2 foundItem.isOperated=', foundItem.isOperated)
 
       if (!foundItem) {
         throw new Error('не нашел в БД RqstStockMarketOrderModel');
