@@ -47,7 +47,7 @@ router.post('/webhook', async (req, res) => {
 
 
 // для обработки "прихода денег на биржу" (WEBHOOKADRESS_FORSTOCK в env)
-router.post('/api/webhook_forstock', async (req, res) => {
+router.post('/webhook_forstock', async (req, res) => {
   try {
     console.log('Получен вебхук payout:', payload);
     const payload = req.body;
