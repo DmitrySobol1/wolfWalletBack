@@ -94,6 +94,7 @@ export async function createPayAdress(
   coin,
   minAmount,
   nowpaymentid,
+  type
 ) {
   try {
     // 1. Валидация входных параметров
@@ -116,6 +117,13 @@ export async function createPayAdress(
       throw new Error('Invalid nowpaymentid format');
     }
 
+    
+    let callBackUrl = process.env.CALLBACKURL_FOR_PAYIN
+
+    if (type == 'market') {
+      callBackUrl = 'https://nowpayments.io'
+    }
+
     // 2. Формирование тела запроса
     const requestData = {
       currency: coin,
@@ -123,7 +131,7 @@ export async function createPayAdress(
       sub_partner_id: String(nowpaymentid),
       is_fixed_rate: false,
       is_fee_paid_by_user: false,
-      ipn_callback_url: 'https://wolf-wallet.ru/api/webhook_payin',
+      ipn_callback_url: callBackUrl, 
     };
 
     // 3. Выполнение запроса с обработкой ошибок
@@ -144,8 +152,6 @@ export async function createPayAdress(
     if (!response.data?.result?.pay_address) {
       throw new Error('Invalid response structure from NowPayments API');
     }
-
-    console.log('HEEEERE', response.data.result )
 
     // await createNewRqstPayIn(response.data.result, tlgid, nowpaymentid);
     // return response.data.result.pay_address;

@@ -54,7 +54,7 @@ router.post('/webhook_forstock', async (req, res) => {
     const receivedSignature = req.headers['x-nowpayments-sig'];
     const secretKey = process.env.IPN_SECRET_KEY;
     
-    console.log('Получен вебхук payout:', payload);
+    console.log('Получен вебхук forstock market:', payload);
 
     if (!receivedSignature) {
       console.log('Отсутствует заголовок подписи');

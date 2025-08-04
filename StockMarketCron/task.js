@@ -456,7 +456,9 @@ export async function executeCheckTask() {
           token,
           coinToSendToNpFull,
           amountToSendToNp,
-          item.userNP
+          item.userNP,
+          'market'
+        
         );
 
         if (!getNpAdressResult) {

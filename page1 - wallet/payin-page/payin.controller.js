@@ -88,7 +88,7 @@ router.post('/get_info_for_payinadress', async (req, res) => {
       coin,
       minAmountPlus5Percent,
       userData.nowpaymentid,
-      // tlgid
+      'payin'
     );
     if (!payAdressObj) {
       return res.json({ statusBE: 'notOk' });
