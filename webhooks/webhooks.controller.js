@@ -16,11 +16,12 @@ export const webhooksController = router;
 // для обработки "вывода" средств
 router.post('/webhook', async (req, res) => {
   try {
-    console.log('Получен вебхук "для вывода" payout:', payload);
     
     const payload = req.body;
     const receivedSignature = req.headers['x-nowpayments-sig'];
     const secretKey = process.env.IPN_SECRET_KEY;
+    
+    console.log('Получен вебхук "для вывода" payout:', payload);
 
     if (!receivedSignature) {
       console.log('Отсутствует заголовок подписи');
@@ -49,10 +50,11 @@ router.post('/webhook', async (req, res) => {
 // для обработки "прихода денег на биржу" (WEBHOOKADRESS_FORSTOCK в env)
 router.post('/webhook_forstock', async (req, res) => {
   try {
-    console.log('Получен вебхук payout:', payload);
     const payload = req.body;
     const receivedSignature = req.headers['x-nowpayments-sig'];
     const secretKey = process.env.IPN_SECRET_KEY;
+    
+    console.log('Получен вебхук payout:', payload);
 
     if (!receivedSignature) {
       console.log('Отсутствует заголовок подписи');
