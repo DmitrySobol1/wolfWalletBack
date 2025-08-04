@@ -9,6 +9,7 @@ import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
 import UserModel from '../models/user.js';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
+import RqstPayInModel from '../models/rqstPayIn.js'
 
 import { TEXTS } from '../texts.js';
 
@@ -74,7 +75,7 @@ function safeSort(obj) {
 // функция обработки вывод средств (payout)
 export async function processWebhookPayout(payload) {
   try {
-    console.log('Обрабатываю:', payload);
+    console.log('Обрабатываю payout wh:', payload);
 
     const statusLowerLetter = payload.status.toLowerCase();
 
@@ -139,6 +140,136 @@ export async function processWebhookPayout(payload) {
     return;
   }
 }
+
+
+
+
+// // функция обработки ввода средств (payin)
+export async function processWebhookPayin(payload) {
+  try {
+
+
+   console.log('Обрабатываю:', payload);
+
+    const status = payload.status?.toLowerCase();
+    const paymentId = payload.payment_id;
+    const amount = payload.outcome_amount
+    const currency = payload.price_currency
+
+    console.log('Статус=', status);
+
+    if (status === 'finished') {
+     
+      const foundItem = await RqstPayInModel.findOne({
+        payment_id: paymentId,
+      });
+
+      if (!foundItem) {
+        throw new Error('не нашел в БД RqstPayInModel');
+      }
+
+
+      // FIXME: добавить параметр isOperated 
+      if (foundItem.isOperated == false) {
+       
+        const updatedItem = await RqstPayInModel.findOneAndUpdate(
+          { payment_id: paymentId },
+          { $set: { payment_status: 'finished', 
+                    isOperated: true,
+                    amount_received: amount
+                  } }
+        );
+
+        if (!updatedItem) {
+          throw new Error(
+            'не изменилось значение в БД RqstStockMarketOrderModel'
+          );
+        }
+
+        const tlgid = updatedItem.tlgid;
+
+         const userFromUserBase = await UserModel.findOne({
+          tlgid: tlgid,
+        });
+
+        const language = userFromUserBase.language;
+        const type = 'payin';
+        const coin = currency;
+        const sumToReceived = amount;
+        const textToSendUser = sumToReceived + ' ' + coin.toUpperCase();
+        console.log('переход к функции сенд мсг');
+        sendTlgMessage(tlgid, language, type, textToSendUser);
+
+        console.log(
+          'из функции обработки вебхука: пришел хук finished, значение isOperated поменял'
+        );
+        return;
+      }
+
+      console.log(
+        'ответ из функции обработки вебхука: пришел повторный хук finished, ничего не менял!'
+      );
+    } 
+
+  
+  //   console.log('Обрабатываю payin wh:', payload);
+
+  //   const status = payload.status.toLowerCase();
+
+
+  // //поменять статус в БД
+  // const updatedItem = await RqstPayInModel.findOneAndUpdate(
+  //   { payment_id: payload.payment_id },
+  //   {
+  //     $set: {
+  //       payment_status: payload.payment_status.toLowerCase(),
+  //       amount_received: payload.outcome_amount,
+  //     },
+  //   }
+  // );
+
+  // console.log('Статус payin=', status);
+
+  // if (status === 'finished') {
+  //   const userFromRqstBase = await RqstPayInModel.findOne({
+  //     payment_id: payload.payment_id,
+  //   });
+  //   const tlgid = userFromRqstBase.tlgid;
+
+  //   const userFromUserBase = await UserModel.findOne({
+  //     tlgid: tlgid,
+  //   });
+
+  //   const language = userFromUserBase.language;
+  //   const type = 'payin';
+  //   const coin = payload.price_currency;
+  //   const sumToReceived = payload.outcome_amount;
+  //   const textToSendUser = sumToReceived + ' ' + coin.toUpperCase();
+  //   console.log('переход к функции сенд мсг');
+  //   sendTlgMessage(tlgid, language, type, textToSendUser);
+  // }
+} catch (error) {
+    console.error(
+      'Ошибка в webhooks.services.js в функции processWebhookPayIn |',
+      error
+    );
+    return;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // для обработки "хука прихода денег на биржу" (при маркет ордере) 
 export async function processWebhookStock(payload) { 

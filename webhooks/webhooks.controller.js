@@ -10,6 +10,7 @@ import {
   processWebhookStock,
   processWebhookStockLimit,
   verifyNowPaymentsSignature,
+  processWebhookPayin
 } from './webhooks.services.js';
 
 export const webhooksController = router;
@@ -49,6 +50,58 @@ router.post('/webhook', async (req, res) => {
     console.error('Ошибка в /wh/webhook, вебхук "вывода" |', error);
   }
 });
+
+
+
+
+
+// для обработки "ввода" средств
+router.post('/webhook_payin', async (req, res) => {
+  try {
+    const payload = req.body;
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    const secretKey = process.env.IPN_SECRET_KEY;
+    
+    console.log('Получен вебхук payin:', payload);
+
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      throw new Error('отсутствует подпись в header');
+    }
+
+
+    const isValid = verifyNowPaymentsSignature(
+      payload,
+      receivedSignature,
+      secretKey
+    );
+
+    if (!isValid) {
+      console.log('Неверная подпись');
+      throw new Error('неверная подпись');
+    }
+
+
+    console.log('Подписи совпадают');
+
+    // 5. Обработка вебхука (с обработкой ошибок)
+    await processWebhookPayin(payload);
+
+    
+  } catch (error) {
+    console.error('Ошибка в /wh/webhook_payin, вебхук "ввода средств" |', error);
+  }
+});
+
+
+
+
+
+
+
+
+
+
 
 // для обработки "прихода денег на биржу" (при маркет ордере) (WEBHOOKADRESS_FORSTOCK в env)
 router.post('/webhook_forstock', async (req, res) => {
@@ -133,3 +186,11 @@ router.post('/webhook_forstock_limit', async (req, res) => {
     );
   }
 });
+
+
+
+
+
+
+
+

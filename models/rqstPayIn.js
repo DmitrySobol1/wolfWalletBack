@@ -30,6 +30,10 @@ const RqstPayInSchema = new mongoose.Schema(
     tlgid: {
       type: String,
       required: true,
+    },
+    isOperated: {
+      type: Boolean,
+      default: false
     }
   },
   {
