@@ -17,7 +17,10 @@ cron.schedule(
       await executeCheckTask();
       console.log('✅ Задача4 выполнена');
     } catch (error) {
-      console.error('❌ Ошибка выполнения задачи4:', error);
+      console.error(
+      'Ошибка в CRON 4 stock market cron > при выполнении файла task.js |',
+      error
+    );
     }
   },
   {
