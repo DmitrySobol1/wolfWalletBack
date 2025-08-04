@@ -539,7 +539,8 @@ router.post('/new_stockorder_market', async (req, res) => {
       trtCoinFromStockToNP_stock_id: null,
       amountAccordingBaseIncrement: null,
       amountSentBackToNp: null,
-      amountBeReceivedByStock: null
+      amountBeReceivedByStock: null,
+      isOperated: false
     });
 
      if (!doc) {

@@ -36,9 +36,11 @@ export async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
   }
 }
 
-
-
-export function verifyNowPaymentsSignature(payload, receivedSignature, secretKey) {
+export function verifyNowPaymentsSignature(
+  payload,
+  receivedSignature,
+  secretKey
+) {
   if (!receivedSignature || !secretKey) return false;
 
   const hmac = crypto.createHmac('sha512', secretKey);
@@ -67,10 +69,6 @@ function safeSort(obj) {
   };
   return sort(obj);
 }
-
-
-
-
 
 // функция обработки вывод средств (payout)
 export async function processWebhookPayout(payload) {
@@ -145,32 +143,58 @@ export async function processWebhookStock(payload) {
   try {
     console.log('Обрабатываю:', payload);
 
-    const statusLowerLetter = payload.status.toLowerCase();
+    const status = payload.status?.toLowerCase();
+    const batch_id = payload.batch_withdrawal_id;
 
-    const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-      { batch_withdrawal_id: payload.batch_withdrawal_id },
-      { $set: { status: statusLowerLetter } }
-    );
-
-    if (!updatedItem) {
-      throw new Error('не изменилось значение в БД RqstStockMarketOrderModel');
+    if (!status || !batch_id) {
+      throw new Error(
+        'Некорректный payload: отсутствует status или batch_withdrawal_id'
+      );
     }
 
-    console.log('Статус=', payload.status.toLowerCase());
+    // const statusLowerLetter = payload.status.toLowerCase();
 
-    if (payload.status.toLowerCase() === 'finished') {
-      const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
-        { batch_withdrawal_id: payload.batch_withdrawal_id },
-        { $set: { status: 'CoinReceivedByStock' } }
-      );
+    // const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+    //   { batch_withdrawal_id: payload.batch_withdrawal_id },
+    //   { $set: { status: statusLowerLetter } }
+    // );
 
-      if (!updatedItem) {
-        throw new Error(
-          'не изменилось значение в БД RqstStockMarketOrderModel'
-        );
+    // if (!updatedItem) {
+    //   throw new Error('не изменилось значение в БД RqstStockMarketOrderModel');
+    // }
+
+    console.log('Статус=', status);
+
+    if (payload.status === 'finished') {
+      const foundItem = await RqstStockMarketOrderModel.findOne({
+        batch_withdrawal_id: batch_id,
+      });
+
+      if (!foundItem) {
+        throw new Error('не нашел в БД RqstStockMarketOrderModel');
       }
 
-      console.log('ответ из функции обработки вебхука: все ок!')
+      if (foundItem.isOperated == false) {
+        const updatedItem = await RqstStockMarketOrderModel.findOneAndUpdate(
+          { batch_withdrawal_id: batch_id },
+          { $set: { status: 'CoinReceivedByStock', isOperated: true } }
+        );
+
+        if (!updatedItem) {
+          throw new Error(
+            'не изменилось значение в БД RqstStockMarketOrderModel'
+          );
+        }
+
+        console.log(
+          'из функции обработки вебхука: пришел хук finished, значение isOperated поменял'
+        );
+        return;
+      }
+
+      console.log(
+        'ответ из функции обработки вебхука: пришел повторный хук finished, ничего не менял!'
+      );
     }
   } catch (error) {
     console.error(
@@ -180,9 +204,3 @@ export async function processWebhookStock(payload) {
     return;
   }
 }
-
-
-
-
-
-

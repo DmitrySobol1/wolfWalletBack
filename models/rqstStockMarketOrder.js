@@ -95,6 +95,10 @@ const RqstStockMarketOrderSchema = new mongoose.Schema(
     amountBeReceivedByStock:{
       type: Number
     },
+    isOperated: {
+      type: Boolean,
+      default: false
+    }
 
 
   
