@@ -93,7 +93,7 @@ router.post('/webhook_forstock', async (req, res) => {
 
 
 // для обработки "прихода денег на биржу" (при лимит ордере) (WEBHOOKADRESS_FORSTOCK_LIMIT в env)
-app.post('/webhook_forstock_limit', async (req, res) => {
+router.post('/webhook_forstock_limit', async (req, res) => {
   try {
     const payload = req.body;
     const receivedSignature = req.headers['x-nowpayments-sig'];
