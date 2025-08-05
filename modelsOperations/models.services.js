@@ -14,6 +14,33 @@ import StockAdressesModel from '../models/stockAdresses.js';
 import ComissionStockMarketModel from '../models/comissionStockMarket.js';
 import WorkingSocketModel from '../models/workingSocket.js';
 
+export async function createNewUser(tlgid) {
+  try {
+    const doc = new UserModel({
+      tlgid: tlgid,
+      isOnboarded: false,
+      isMemberEdChannel: null,
+      jb_email: null,
+      isLevelTested: false,
+      level: null,
+      nowpaymentid: 0,
+      valute: 'eur',
+      language: 'en',
+    });
+
+    const user = await doc.save();
+
+    if (!user) {
+      throw new Error('ошибка при создании пользователя в бд UserModel');
+    }
+
+    return { status: 'created' };
+  } catch (error) {
+    console.error('Ошибка в функции models.services.js > createNewUser', error);
+    return;
+  }
+}
+
 export async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
   try {
     const doc = new RqstPayInModel({
@@ -27,7 +54,7 @@ export async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
     });
 
     const rqst = await doc.save();
-    return rqst
+    return rqst;
   } catch (err) {
     console.log(err);
   }
@@ -75,19 +102,23 @@ export async function createRqstTrtFromuserToMain(data) {
   }
 }
 
-
-
-
-
 export async function createRqstTransferToOtherUserModel(data) {
   try {
-
-    if  (!data){
-      return
+    if (!data) {
+      return;
     }
 
-    const {transactionId_comission, coin, sum, fromUserNP, adress, our_comission, tlgid, statusComission, qtyToTransfer } = data
-
+    const {
+      transactionId_comission,
+      coin,
+      sum,
+      fromUserNP,
+      adress,
+      our_comission,
+      tlgid,
+      statusComission,
+      qtyToTransfer,
+    } = data;
 
     const rqst = new RqstTransferToOtherUserModel({
       transactionId_comission,
@@ -104,7 +135,6 @@ export async function createRqstTransferToOtherUserModel(data) {
       qtyToTransfer,
     });
 
-     
     const item = await rqst.save();
 
     console.log('step 3 ITEM=', item._id);
@@ -114,12 +144,20 @@ export async function createRqstTransferToOtherUserModel(data) {
   }
 }
 
-
-
 export async function createRqstExchange(data) {
   try {
-
-    const {id_clientToMaster, tlgid, nowpaymentid, amount, coinFrom, convertedAmount, coinTo, nowpaymentComission, ourComission, language }  = data
+    const {
+      id_clientToMaster,
+      tlgid,
+      nowpaymentid,
+      amount,
+      coinFrom,
+      convertedAmount,
+      coinTo,
+      nowpaymentComission,
+      ourComission,
+      language,
+    } = data;
 
     const rqst = new RqstExchangeSchemaModel({
       id_clientToMaster,
@@ -145,17 +183,26 @@ export async function createRqstExchange(data) {
     return 'created';
   } catch (err) {
     console.log(err);
-    return
+    return;
   }
 }
-
-
 
 // создать новый объект в verified payouts
 export async function createVerifiedPayout(data) {
   try {
-
-    const {payout_id, batch_withdrawal_id, coin, sum, status, userIdAtNP, adress, networkFees, ourComission, qtyToSend, qtyForApiRqst }  = data
+    const {
+      payout_id,
+      batch_withdrawal_id,
+      coin,
+      sum,
+      status,
+      userIdAtNP,
+      adress,
+      networkFees,
+      ourComission,
+      qtyToSend,
+      qtyForApiRqst,
+    } = data;
 
     const rqst = new VerifiedPayoutsModel({
       payout_id,
@@ -169,7 +216,7 @@ export async function createVerifiedPayout(data) {
       ourComission,
       qtyToSend,
       qtyForApiRqst,
-      isSentMsg:false
+      isSentMsg: false,
     });
 
     if (!rqst) {
@@ -177,7 +224,7 @@ export async function createVerifiedPayout(data) {
     }
 
     const user = await rqst.save();
-    return ({status : 'created'});
+    return { status: 'created' };
   } catch (error) {
     console.error(
       'Ошибка в функции models.services.js > createVerifiedPayout |',
@@ -187,23 +234,19 @@ export async function createVerifiedPayout(data) {
   }
 }
 
-
-
 export async function getOurComissionMarket() {
   try {
-    
-     const response = await ComissionStockMarketModel.findOne({
-          coin: 'ourComission'
-        });
+    const response = await ComissionStockMarketModel.findOne({
+      coin: 'ourComission',
+    });
 
-      if (!response) {
-       throw new Error('не получен ответ в БД ComissionStockMarketModel ');
-      }   
+    if (!response) {
+      throw new Error('не получен ответ в БД ComissionStockMarketModel ');
+    }
 
-      const ourComission = response.qty;
+    const ourComission = response.qty;
 
-      return ({ourComission:ourComission});
-
+    return { ourComission: ourComission };
   } catch (error) {
     console.error(
       'Ошибка в функции models.services.js > getOurComissionMarket |',
@@ -213,24 +256,20 @@ export async function getOurComissionMarket() {
   }
 }
 
-
-
 // получить нашу комиссию за сделку - Лимит
 export async function getOurComissionLimit() {
   try {
-    
-     const response = await ComissionStockMarketModel.findOne({
-          coin: 'ourComission'
-        });
+    const response = await ComissionStockMarketModel.findOne({
+      coin: 'ourComission',
+    });
 
-      if (!response) {
-       throw new Error('не получен ответ в БД ComissionStockMarketModel ');
-      }   
+    if (!response) {
+      throw new Error('не получен ответ в БД ComissionStockMarketModel ');
+    }
 
-      const ourComission = response.qty;
+    const ourComission = response.qty;
 
-      return ({ourComission:ourComission});
-
+    return { ourComission: ourComission };
   } catch (error) {
     console.error(
       'Ошибка в функции models.services.js > getOurComissionLimit |',
