@@ -1,6 +1,8 @@
 import { Router } from 'express';
 const router = Router();
 
+import { logger } from '../middlewares/error-logger.js'
+
 
 import UserModel from '../models/user.js';
 import ComissionExchangeModel from '../models/comissionToExchange.js';
@@ -25,11 +27,12 @@ router.get('/get_comissionExchange', async (req, res) => {
       data: commissions,
     });
   } catch (err) {
-    console.error('Error in endpoint /get_comissionExchange', err)
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+              title: 'Error in endpoint /get_comissionExchange', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            }); 
    return res.json({ statusBE: 'notOk' });
   }
 });
@@ -55,11 +58,12 @@ router.get('/get_minamount', async (req, res) => {
       minAmount: minAmount,
     });
   } catch (err) {
-    console.error('Ошибка в /api/get_minamount:', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+              title: 'Ошибка в /api/get_minamount', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            }); 
    return res.json({ statusBE: 'notOk' });
   }
 });
@@ -130,11 +134,12 @@ router.get('/get_balance_currentCoin', async (req, res) => {
       }
 
   } catch (err) {
-    console.error('Ошибка в /get_balance_currentCoin', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+              title: 'Ошибка в /get_balance_currentCoin', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -166,11 +171,12 @@ router.get('/get_conversion_rate', async (req, res) => {
       convertedAmount: convertedAmount,
     });
   } catch (err) {
-    console.error('Ошибка в /exchange/get_conversion_rate:', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+              title: 'Ошибка в /exchange/get_conversion_rate', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -241,11 +247,12 @@ router.post('/rqst_fromUser_toMaster', async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('Ошибка в /exchange/rqst_fromUser_toMaster', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+              title: 'Ошибка в /exchange/rqst_fromUser_toMaster', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            }); 
     return res.json({ statusBE: 'notOk' });
   }
 });

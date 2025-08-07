@@ -15,6 +15,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
+import { logger } from '../middlewares/error-logger.js'
 
 import mongoose from 'mongoose';
 import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
@@ -136,11 +137,12 @@ export async function executeCheckTask() {
       }
     }
   } catch (err) {
-    console.error('Ошибка в CRON > checkTransferStatusCron task.js |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          cron_title: 'Ошибка в CRON > checkTransferStatusCron task.js', 
+          cron_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return;
   }
 }
@@ -161,11 +163,12 @@ async function create2FAcode() {
 
     return code;
   } catch (err) {
-    console.error('Ошибка в функции create2FAcode |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          fn_title: 'Ошибка в функции create2FAcode', 
+          cron_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return;
   }
 }

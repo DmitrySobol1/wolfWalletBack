@@ -8,7 +8,7 @@ import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
 
 
-
+import { logger } from '../middlewares/error-logger.js'
 
 // получение данных о стоимости крипты
 export async function getCryptoPrices() {
@@ -46,11 +46,11 @@ export async function getUserBalance(nowpaymentid) {
 
   return response.data.result.balances;
   } catch (err) {
-    console.error('ошибка в функции getUserBalance |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+        fn_title:  'ошибка в функции getUserBalance',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return 
   }
 }
@@ -99,11 +99,11 @@ export async function getUserBalanceInUsd(userBalance, cryptoPrices) {
 
   return userBalanceInUsd;
   } catch (err) {
-    console.error('ошибка в функции getUserBalanceInUsd |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+        fn_title:  'ошибка в функции getUserBalanceInUsd',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return 
   }
 }
@@ -148,11 +148,11 @@ export async function getResultForFront(valute, language, userBalanceInUsd) {
     };
   } 
 } catch (err) {
-    console.error('ошибка в функции getResultForFront |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+        fn_title:  'ошибка в функции getResultForFront',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return 
   }
 }
@@ -215,11 +215,11 @@ export async function getArrayOfUserBalanceWithUsdPrice(
 
   return arrayOfUserBalanceWithUsdPrice;
   }  catch (err) {
-    console.error('ошибка в функции getArrayOfUserBalanceWithUsdPrice |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+        fn_title:  'ошибка в функции getArrayOfUserBalanceWithUsdPrice',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return 
   }
 }
@@ -249,11 +249,11 @@ export async function getSymbolAndKoef(valute) {
   }
   return { fiatKoefficient, symbol };
 } catch (err) {
-    console.error('ошибка в функции getSymbolAndKoef |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+     logger.error({
+        fn_title:  'ошибка в функции getSymbolAndKoef',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return 
   }
 }

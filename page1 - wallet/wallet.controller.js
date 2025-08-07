@@ -32,11 +32,11 @@ router.get('/test', async (req, res) => {
   } catch (err) {
     // logger.error('some error info')
     logger.error({
-    title: 'ошибка тут: endpoint /test',
-    message: err.message,  
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+          title: 'Ошибка в test', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
         
     return res.status(400).json({ statusBE: 'notOk' });
   }
@@ -129,11 +129,12 @@ router.get('/get_balance_for_pay_out', async (req, res) => {
       return res.json({ dataForFront });
     }
   } catch (err) {
-    console.error('endpoint wallet/get_balance_for_pay_out |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'endpoint wallet/get_balance_for_pay_out', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -305,11 +306,12 @@ router.get('/get_my_payin', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в endpoint /wallet/get_my_payin:', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /wallet/get_my_payin', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -483,11 +485,12 @@ router.get('/get_my_payout', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в endpoint /wallet/get_my_payout |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /wallet/get_my_payout', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });  
     return res.json({ statusBE: 'notOk' });
   }
 });

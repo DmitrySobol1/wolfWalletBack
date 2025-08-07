@@ -48,6 +48,7 @@ import { sendTlgMessage } from '../webhooks/webhooks.services.js';
 
 import speakeasy from 'speakeasy';
 
+import { logger } from '../middlewares/error-logger.js'
 
 
 mongoose
@@ -697,11 +698,12 @@ export async function executeCheckTask() {
       }
     }
   } catch (err) {
-    console.error('Ошибка в CRON > StockLimit task.js |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          cron_title: 'Ошибка в CRON > StockLimit task.js', 
+          cron_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return;
   }
 }
@@ -718,10 +720,13 @@ async function create2FAcode() {
 
     return code;
   } catch (err) {
-    console.error(
-      'Ошибка в функции create2FAcode > StockLimitCron task.js |',
-      err
-    );
+    
+    logger.error({
+          fn_title: 'Ошибка в функции create2FAcode > StockLimitCron task.js', 
+          fn_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return;
   }
 }

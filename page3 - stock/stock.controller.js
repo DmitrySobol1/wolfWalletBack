@@ -3,6 +3,8 @@ const router = Router();
 
 import axios from 'axios';
 
+
+
 import { logger } from '../middlewares/error-logger.js'
 
 import { getPrice } from '../stockKukoin/kukoin.services.js';
@@ -34,11 +36,15 @@ router.get('/get_stock_pairs', async (req, res) => {
       data: pairs,
     });
   } catch (err) {
-    console.error('Error in endpoint /stock/get_stock_pairs', err);
-    console.error({
-      dataFromServer: err.response?.data,
-      statusFromServer: err.response?.status,
-    });
+    
+    
+     logger.error({
+              title: 'Error in endpoint /stock/get_stock_pairs', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            });
+
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -58,11 +64,14 @@ router.get('/get_ticker', async (req, res) => {
 
     return res.json(response.data);
   } catch (err) {
-    console.error('Error in endpoint /stock/get_ticker', err);
-    console.error({
-      dataFromServer: err.response?.data,
-      statusFromServer: err.response?.status,
-    });
+    
+    logger.error({
+              title: 'Error in endpoint /stock/get_ticker', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            });
+
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -80,11 +89,15 @@ router.get('/get_ourComissionStockMarket', async (req, res) => {
 
     return res.json({ comission: comission.qty, statusFn: 'ok' });
   } catch (err) {
-    console.error('Error in endpoint /stock/get_ourComissionStockMarket', err);
-    console.error({
-      dataFromServer: err.response?.data,
-      statusFromServer: err.response?.status,
-    });
+    
+
+    logger.error({
+              title: 'Error in endpoint /stock/get_ourComissionStockMarket', 
+              message: err.message,
+              dataFromServer: err.response?.data,
+              statusFromServer: err.response?.status,
+            });
+
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -121,11 +134,14 @@ router.get('/get_minWithdrawNp', async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('Ошибка в endpoint /stock/get_minWithdrawNp | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint /stock/get_minWithdrawNp', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
-    });
+    }); 
+
+
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -166,8 +182,9 @@ router.get('/get_minDepositWithdrawStock', async (req, res) => {
       throw new Error('не верные данные от Kukoin');
     }
   } catch (err) {
-    console.error('Ошибка в endpoint /get_minDepositWithdrawStock | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint /get_minDepositWithdrawStock', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
     });
@@ -179,8 +196,8 @@ router.get('/get_minDepositNp', async (req, res) => {
   try {
     const { coin } = req.query;
 
-    // const response = await getMinDeposit(coin);
-    const response = await getMinDeposit('ccc');
+    const response = await getMinDeposit(coin);
+    
     
     if (!response) {
       throw new Error('нет ответа от функции getMinDeposit');
@@ -188,10 +205,11 @@ router.get('/get_minDepositNp', async (req, res) => {
 
     res.json({ result: response.data.min_amount });
   } catch (err) {
-     logger.error('Ошибка в endpoint /get_minDepositNp | ', err.message);
      logger.error({
-     dataFromServer: err.response?.data,
-     statusFromServer: err.response?.status,
+      title: 'Ошибка в endpoint /get_minDepositNp', 
+      message: err.message,
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
     });
 
     return res.json({ statusBE: 'notOk' });
@@ -327,8 +345,9 @@ router.get('/get_myOpenOrders', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в endpoint stock/get_myOpenOrders | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint stock/get_myOpenOrders', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
     });
@@ -471,8 +490,9 @@ router.get('/get_myDoneOrders', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в endpoint stock/get_myDoneOrders | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint stock/get_myDoneOrders', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
     });
@@ -588,8 +608,9 @@ router.post('/new_stockorder_market', async (req, res) => {
 
     return res.json({ statusFn: 'saved' });
   } catch (err) {
-    console.error('Ошибка в endpoint stock/new_stockorder_market | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint stock/new_stockorder_market', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
     });
@@ -709,8 +730,9 @@ router.post('/new_stockorder_limit', async (req, res) => {
 
     return res.json({ statusFn: 'saved' });
   } catch (err) {
-    console.error('Ошибка в endpoint stock/new_stockorder_limit | ', err);
-    console.error({
+    logger.error({
+      title: 'Ошибка в endpoint stock/new_stockorder_limit', 
+      message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
     });

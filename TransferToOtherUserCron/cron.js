@@ -4,6 +4,7 @@ import { executeCheckTask2 } from './task.js';
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
+import { logger } from '../middlewares/error-logger.js'
 
 //Сценарий, для проверки, прошел ли трансфер денег от одного клиента другому
 
@@ -16,11 +17,14 @@ cron.schedule(
     try {
       await executeCheckTask2();
       console.log('✅ Задача2 успешно выполнена');
-    } catch (error) {
-      console.error(
-      'Ошибка в CRON 2 > при выполнении файла task.js |',
-      error
-    );
+    } catch (err) {
+      
+    logger.error({
+          cron_title: 'Ошибка в CRON 2 > при выполнении файла task.js', 
+          cron_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     }
   },
   {

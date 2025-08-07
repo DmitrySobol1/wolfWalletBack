@@ -1,3 +1,5 @@
+import { logger } from '../middlewares/error-logger.js'
+
 //сохранить новую торговую пару
 app.post('/api/save_new_tradingpair', async (req, res) => {
   const doc = new TradingPairsModel({

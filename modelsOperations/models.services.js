@@ -6,6 +6,8 @@ import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
 import RqstExchangeSchemaModel from '../models/rqstExchange.js';
 import ComissionStockMarketModel from '../models/comissionStockMarket.js';
 
+import { logger } from '../middlewares/error-logger.js'
+
 export async function createNewUser(tlgid) {
   try {
     const doc = new UserModel({
@@ -28,11 +30,11 @@ export async function createNewUser(tlgid) {
 
     return { status: 'created' };
   } catch (err) {
-    console.error('Ошибка в функции models.services.js > createNewUser', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции models.services.js > createNewUser',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -52,7 +54,11 @@ export async function createNewRqstPayIn(params, tlgid, nowpaymentid) {
     const rqst = await doc.save();
     return rqst;
   } catch (err) {
-    console.log(err);
+     logger.error({
+        fn_title:  'Ошибка в функции createNewRqstPayIn',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
   }
 }
 
@@ -94,7 +100,11 @@ export async function createRqstTrtFromuserToMain(data) {
     await rqst.save();
     return 'created';
   } catch (err) {
-    console.log(err);
+     logger.error({
+        fn_title:  'Ошибка в функции RqstTrtFromUserToMainModel',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
   }
 }
 
@@ -136,7 +146,11 @@ export async function createRqstTransferToOtherUserModel(data) {
     console.log('step 3 ITEM=', item._id);
     return { item_id: item._id.toString() };
   } catch (err) {
-    console.log(err);
+    logger.error({
+        fn_title:  'Ошибка в функции RqstTransferToOtherUserModel',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
   }
 }
 
@@ -178,7 +192,11 @@ export async function createRqstExchange(data) {
     await rqst.save();
     return 'created';
   } catch (err) {
-    console.log(err);
+    logger.error({
+        fn_title:  'Ошибка в функции createRqstExchange',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -221,11 +239,13 @@ export async function createVerifiedPayout(data) {
 
     const user = await rqst.save();
     return { status: 'created' };
-  } catch (error) {
-    console.error(
-      'Ошибка в функции models.services.js > createVerifiedPayout |',
-      error
-    );
+  } catch (err) {
+    
+    logger.error({
+        fn_title:  'Ошибка в функции models.services.js > createVerifiedPayout',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -243,11 +263,12 @@ export async function getOurComissionMarket() {
     const ourComission = response.qty;
 
     return { ourComission: ourComission };
-  } catch (error) {
-    console.error(
-      'Ошибка в функции models.services.js > getOurComissionMarket |',
-      error
-    );
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в функции models.services.js > getOurComissionMarket',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -266,11 +287,12 @@ export async function getOurComissionLimit() {
     const ourComission = response.qty;
 
     return { ourComission: ourComission };
-  } catch (error) {
-    console.error(
-      'Ошибка в функции models.services.js > getOurComissionLimit |',
-      error
-    );
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в функции models.services.js > getOurComissionLimit',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }

@@ -3,6 +3,8 @@ dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
 import axios from 'axios';
 
+import { logger } from '../middlewares/error-logger.js'
+
 import crypto from 'crypto';
 
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
@@ -29,11 +31,13 @@ export async function sendTlgMessage(tlgid, language, type, textQtyCoins) {
 
     console.log(response.data); // выводим результат
     return { status: 'ok' };
-  } catch (error) {
-    console.error(
-      'Ошибка в webhooks.services.js в функции sendTlgMessage |',
-      error
-    );
+  } catch (err) {
+    
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции sendTlgMessage',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -132,11 +136,12 @@ export async function processWebhookPayout(payload) {
         throw new Error('ошибка в функции sendTlgMessage ');
       }
     }
-  } catch (error) {
-    console.error(
-      'Ошибка в webhooks.services.js в функции processWebhookPayout |',
-      error
-    );
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции processWebhookPayout',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -248,11 +253,12 @@ export async function processWebhookPayin(payload) {
   //   console.log('переход к функции сенд мсг');
   //   sendTlgMessage(tlgid, language, type, textToSendUser);
   // }
-} catch (error) {
-    console.error(
-      'Ошибка в webhooks.services.js в функции processWebhookPayIn |',
-      error
-    );
+} catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции processWebhookPayIn',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -318,11 +324,12 @@ export async function processWebhookStock(payload) {
         'ответ из функции обработки вебхука: пришел повторный хук finished, ничего не менял!'
       );
     }
-  } catch (error) {
-    console.error(
-      'Ошибка в webhooks.services.js в функции processWebhookStock',
-      error
-    );
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции processWebhookStock',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -369,11 +376,12 @@ export async function processWebhookStockLimit(payload) {
         'ответ из функции обработки вебхука: пришел повторный хук finished, ничего не менял!'
       );
     }
-  } catch (error) {
-    console.error(
-      'Ошибка в webhooks.services.js в функции processWebhookStockLimit',
-      error
-    );
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции processWebhookStockLimit',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }

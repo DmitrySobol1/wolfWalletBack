@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import UserModel from '../../models/user.js';
 
+import { logger } from '../../middlewares/error-logger.js'
+
 import {
   getAvailableCoins,
   getTokenFromNowPayment,
@@ -27,11 +29,12 @@ router.get('/get_available_coins', async (req, res) => {
 
     return res.json(response);
   } catch (err) {
-    console.error('Ошибка в endpoint /payin/get_my_payout |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payin/get_my_payout', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -109,11 +112,12 @@ router.post('/get_info_for_payinadress', async (req, res) => {
 
     return res.json(objToFront);
   } catch (err) {
-    console.error('Ошибка в endpoint /payin/get_info_for_payinadress |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payin/get_info_for_payinadress', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });

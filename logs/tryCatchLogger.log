@@ -1,0 +1,2 @@
+{"level":"error","message":{"fn_dataFromServer":{"code":"NOT_FOUND","message":"Currency undefined not found","status":false,"statusCode":404},"fn_message":"Request failed with status code 404","fn_title":"Ошибка в функции nowPayment.services.js > getMinDeposit"},"timestamp":"07-08-2025 22:44:56"}
+{"level":"error","message":"нет ответа от функции getMinDeposit","timestamp":"07-08-2025 22:44:56","title":"Ошибка в endpoint /get_minDepositNp"}

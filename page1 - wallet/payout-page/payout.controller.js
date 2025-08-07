@@ -3,6 +3,8 @@ import axios from 'axios';
 
 import UserModel from '../../models/user.js';
 
+import { logger } from '../../middlewares/error-logger.js'
+
 import {
   getMinAmountToWithdraw,
   getPayoutFee,
@@ -61,11 +63,12 @@ router.get('/get_info_for_payout', async (req, res) => {
       coin: req.query.coin,
     });
   } catch (err) {
-    console.error('Ошибка в endpoint /payout/get_info_for_payout |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payout/get_info_for_payout', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -84,11 +87,12 @@ router.get('/get_withdrawal_fee', async (req, res) => {
 
     return res.json({ networkFees:response.data.fee });
   } catch (err) {
-    console.error('Ошибка в endpoint /payout/get_withdrawal_fee |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payout/get_withdrawal_fee', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -112,11 +116,12 @@ router.post('/validate_adress', async (req, res) => {
       throw new Error('не верный ответ от функции validateAdress');
     }
   } catch (err) {
-    console.error('Ошибка в endpoint /payout/validate_adress |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payout/validate_adress', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -181,11 +186,12 @@ router.post('/rqst_to_payout', async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('Ошибка в endpoint /payout/rqst_to_payout |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /payout/rqst_to_payout', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return res.json({ statusBE: 'notOk' });
   }
 

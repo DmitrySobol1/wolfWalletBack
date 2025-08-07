@@ -4,6 +4,7 @@ import UserModel from '../models/user.js';
 
 import { createNewUser } from '../modelsOperations/models.services.js';
 
+import { logger } from '../middlewares/error-logger.js'
 
 import { getTokenFromNowPayment, createUserInNowPayment } from '../nowPayment/nowPayment.services.js'
 
@@ -38,11 +39,12 @@ router.post('/enter', async (req, res) => {
     userData.result = 'showWalletPage';
     return res.json({ userData });
   } catch (err) {
-    console.error('Error in endpoint /system/enter', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Error in endpoint /system/enter', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -61,11 +63,12 @@ router.post('/change_valute', async (req, res) => {
 
     return res.json({ status: 'changed' });
   } catch (err) {
-    console.error('Error in endpoint /system/change_valute', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Error in endpoint /system/change_valute', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return
   }
 });
@@ -84,11 +87,12 @@ router.post('/change_language', async (req, res) => {
 
     return res.json({ status: 'changed' });
   } catch (err) {
-    console.error('Error in endpoint /system/change_language', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Error in endpoint /system/change_language', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
   return
   }
 });
@@ -115,11 +119,12 @@ router.post('/get_user_id', async (req, res) => {
 
     return res.json({ nowpaymentid: nowpaymentid });
   } catch (err) {
-    console.error('Error in endpoint /system/get_user_id', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Error in endpoint /system/get_user_id', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -158,11 +163,12 @@ router.post('/create_user_NpId', async (req, res) => {
 
     return res.json({ nowpaymentid: nowpaymentid });
   } catch (err) {
-    console.error('Ошибка в endpoint system/create_user_NpId |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Ошибка в endpoint system/create_user_NpId', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });

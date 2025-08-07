@@ -15,6 +15,8 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '/root/wolfwallet/wolfWalletBack/.env' });
 
+import { logger } from '../middlewares/error-logger.js'
+
 import mongoose from 'mongoose';
 import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
 import UserModel from '../models/user.js';
@@ -156,11 +158,12 @@ export async function executeCheckTask2() {
       }
     }
   } catch (err) {
-    console.error('Ошибка в CRON > TransferToOtherUserCron task.js |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          cron_title: 'Ошибка в CRON > TransferToOtherUserCron task.js', 
+          cron_message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return;
   }
 }

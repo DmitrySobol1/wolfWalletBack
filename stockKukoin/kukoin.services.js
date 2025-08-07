@@ -3,6 +3,8 @@ import crypto from 'crypto';
 
 import { KcSigner } from './kcSigner.js'; 
 
+import { logger } from '../middlewares/error-logger.js'
+
 export async function getPrice(pair) {
   try {
     if (!pair) {
@@ -18,11 +20,11 @@ export async function getPrice(pair) {
 
     return response; 
   } catch (err) {
-    console.error('Error in stock.services.js - getPrice', err)
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Error in stock.services.js - getPrice',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return
   }
 }
@@ -106,11 +108,11 @@ export async function placeOrder(coin1, coin2, type, amount) {
       };
     }
   } catch (err) {
-    console.error('Ошибка в функции kukoin.services.js > placeOrder |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > placeOrder',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -190,11 +192,11 @@ export async function checkOrderExecution(
       }
     }
   } catch (err) {
-    console.error('Ошибка в функции kukoin.services.js > checkOrderStatus |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > checkOrderStatus',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -241,11 +243,11 @@ export async function getWithdrawalInfo(coin, chain) {
       return { precision: response.data.data.precision, statusFn: 'ok' };
     }
   } catch (err) {
-    console.error('Ошибка в функции kukoin.services.js > getWithdrawalInfo |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > getWithdrawalInfo',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -308,11 +310,11 @@ export async function makeWithdrawFromStockToNp(amount, coin, adress, chain) {
       return response.data.data.withdrawalId;
     }
   } catch (err) {
-    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }
@@ -374,11 +376,11 @@ export async function transferInStock(coin, amount) {
       return { statusFn: 'ok' };
     }
   } catch (err) {
-    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', err);
-     console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
     return;
   }
 }

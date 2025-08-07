@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import axios from 'axios';
 
+import { logger } from '../../middlewares/error-logger.js'
+
 import UserModel from '../../models/user.js';
 import ComissionToTransferModel from '../../models/comissionToTransfer.js';
 import RqstTransferToOtherUserModel from '../../models/rqstTransferToOtherUser.js';
@@ -59,11 +61,12 @@ router.get('/get_transfer_fee', async (req, res) => {
 
     return res.json(response);
   } catch (err) {
-    console.error('Ошибка в endpoint /transfer/get_transfer_fee |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /transfer/get_transfer_fee', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        });
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -88,11 +91,12 @@ router.post('/get_user', async (req, res) => {
 
     return res.json({ count: response.data.count });
   } catch (err) {
-    console.error('Ошибка в endpoint /transfer/get_usere |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /transfer/get_usere', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -232,11 +236,12 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
     return res.json({ status: 'OK' });
   } catch (err) {
-    console.error('Ошибка в endpoint /transfer/rqst_to_transfer |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  }); 
+    logger.error({
+          title: 'Ошибка в endpoint /transfer/rqst_to_transfer', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
     return res.json({ statusBE: 'notOk' });
   }
 });

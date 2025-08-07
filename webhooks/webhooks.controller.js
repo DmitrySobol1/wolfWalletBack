@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { logger } from '../middlewares/error-logger.js'
 
 const router = Router();
 
@@ -45,11 +46,12 @@ router.post('/webhook', async (req, res) => {
     // 5. Обработка вебхука (с обработкой ошибок)
     await processWebhookPayout(payload);
   } catch (err) {
-    console.error('Ошибка в /wh/webhook, вебхук "вывода" |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Ошибка в /wh/webhook, вебхук "вывода"', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
   }
 });
 
@@ -91,11 +93,12 @@ router.post('/webhook_payin', async (req, res) => {
 
     
   } catch (err) {
-    console.error('Ошибка в /wh/webhook_payin, вебхук "ввода средств" |', err);
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Ошибка в /wh/webhook_payin, вебхук "ввода средства', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
   }
 });
 
@@ -143,14 +146,13 @@ router.post('/webhook_forstock', async (req, res) => {
       console.log('статус не finished, не обрабатываем');
     }
   } catch (err) {
-    console.error(
-      'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу при маркет ордере',
-      err
-    );
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    
+    logger.error({
+          title: 'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу при маркет ордере', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
   }
 });
 
@@ -190,14 +192,12 @@ router.post('/webhook_forstock_limit', async (req, res) => {
       console.log('статус не finished, не обрабатываем');
     }
   } catch (err) {
-    console.error(
-      'Ошибка в /wh/webhook_forstock_limit, вебхук для обработки "прихода денег на биржу при лимит ордере',
-      err
-    );
-    console.error({
-    dataFromServer: err.response?.data,
-    statusFromServer: err.response?.status
-  });
+    logger.error({
+          title: 'Ошибка в /wh/webhook_forstock_limit, вебхук для обработки "прихода денег на биржу при лимит ордере', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
   }
 });
 

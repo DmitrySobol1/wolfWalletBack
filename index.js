@@ -58,6 +58,8 @@ app.use('/api/wh', webhooksController)
 app.use('/api/system', systemController)
 
 
+
+// all error, кроме тех, что я ловлю сам в try|catch
 app.use(errorLogger)
 
 app.listen(PORT, (err) => {
