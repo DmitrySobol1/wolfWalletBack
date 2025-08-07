@@ -569,8 +569,12 @@ export async function executeCheckTask() {
         }
       }
     }
-  } catch (error) {
-    console.error('Ошибка в CRON > StockMarketCron task.js |', error);
+  } catch (err) {
+    console.error('Ошибка в CRON > StockMarketCron task.js |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -586,10 +590,10 @@ async function create2FAcode() {
     });
 
     return code;
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции create2FAcode > StockMarketCron task.js |',
-      error
+      err
     );
     return;
   }

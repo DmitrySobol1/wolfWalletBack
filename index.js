@@ -11,7 +11,9 @@ import { systemController } from './SystemAction/system.controller.js'
 
 import { exchangeController } from './page2 - exchange/exchange.controller.js'
 
-
+import {requestLogger} from './middlewares/error-logger.js'
+import {errorLogger} from './middlewares/error-logger.js'
+ 
 import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -28,6 +30,9 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+
+// app.use(requestLogger)
 
 
 // wallet page
@@ -53,6 +58,14 @@ app.use('/api/wh', webhooksController)
 app.use('/api/system', systemController)
 
 
+app.use(errorLogger)
+
+app.listen(PORT, (err) => {
+  if (err) {
+    return console.log(err);
+  }
+  console.log('server has been started');
+});
 
 
 // FIXME: не удалять, не нашел, где используется на фронте
@@ -75,9 +88,3 @@ app.use('/api/system', systemController)
 
 
 
-app.listen(PORT, (err) => {
-  if (err) {
-    return console.log(err);
-  }
-  console.log('server has been started');
-});

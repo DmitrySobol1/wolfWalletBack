@@ -17,56 +17,20 @@ export async function getPrice(pair) {
     }
 
     return response; 
-  } catch (error) {
-    console.error('Error in stock.services.js - getPrice', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error('Error in stock.services.js - getPrice');
+  } catch (err) {
+    console.error('Error in stock.services.js - getPrice', err)
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 }
 
 //разместить order на бирже
 export async function placeOrder(coin1, coin2, type, amount) {
   try {
-    // class KcSigner {
-    //   constructor(apiKey, apiSecret, apiPassphrase) {
-    //     this.apiKey = apiKey || '';
-    //     this.apiSecret = apiSecret || '';
-    //     this.apiPassphrase = apiPassphrase || '';
-
-    //     if (apiPassphrase && apiSecret) {
-    //       this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-    //     }
-
-    //     if (!apiKey || !apiSecret || !apiPassphrase) {
-    //       console.warn('API credentials are missing. Access will likely fail.');
-    //     }
-    //   }
-
-    //   sign(plain, key) {
-    //     return crypto.createHmac('sha256', key).update(plain).digest('base64');
-    //   }
-
-    //   headers(requestPath, method = 'POST', body = '') {
-    //     const timestamp = Date.now().toString();
-    //     const bodyString =
-    //       typeof body === 'object' ? JSON.stringify(body) : body;
-    //     const prehash =
-    //       timestamp + method.toUpperCase() + requestPath + bodyString;
-    //     const signature = this.sign(prehash, this.apiSecret);
-
-    //     return {
-    //       'KC-API-KEY': this.apiKey,
-    //       'KC-API-PASSPHRASE': this.apiPassphrase,
-    //       'KC-API-TIMESTAMP': timestamp,
-    //       'KC-API-SIGN': signature,
-    //       'KC-API-KEY-VERSION': '3',
-    //       'Content-Type': 'application/json',
-    //     };
-    //   }
-    // }
-
+    
     // Load API credentials from environment
     const key = process.env.KUCOIN_KEY || '';
     const secret = process.env.KUCOIN_SECRET || '';
@@ -141,8 +105,12 @@ export async function placeOrder(coin1, coin2, type, amount) {
         amountWithStep: amountWithStep,
       };
     }
-  } catch (error) {
-    console.error('Ошибка в функции kukoin.services.js > placeOrder |', error);
+  } catch (err) {
+    console.error('Ошибка в функции kukoin.services.js > placeOrder |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -160,44 +128,7 @@ export async function checkOrderExecution(
   coin2chain
 ) {
   try {
-    // class KcSigner {
-    //   constructor(apiKey, apiSecret, apiPassphrase) {
-    //     this.apiKey = apiKey || '';
-    //     this.apiSecret = apiSecret || '';
-    //     this.apiPassphrase = apiPassphrase || '';
-
-    //     if (apiPassphrase && apiSecret) {
-    //       this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-    //     }
-
-    //     if (!apiKey || !apiSecret || !apiPassphrase) {
-    //       console.warn('API credentials are missing. Access will likely fail.');
-    //     }
-    //   }
-
-    //   sign(plain, key) {
-    //     return crypto.createHmac('sha256', key).update(plain).digest('base64');
-    //   }
-
-    //   headers(requestPath, method = 'POST', body = '') {
-    //     const timestamp = Date.now().toString();
-    //     const bodyString =
-    //       typeof body === 'object' ? JSON.stringify(body) : body;
-    //     const prehash =
-    //       timestamp + method.toUpperCase() + requestPath + bodyString;
-    //     const signature = this.sign(prehash, this.apiSecret);
-
-    //     return {
-    //       'KC-API-KEY': this.apiKey,
-    //       'KC-API-PASSPHRASE': this.apiPassphrase,
-    //       'KC-API-TIMESTAMP': timestamp,
-    //       'KC-API-SIGN': signature,
-    //       'KC-API-KEY-VERSION': '3',
-    //       'Content-Type': 'application/json',
-    //     };
-    //   }
-    // }
-
+  
     // Load API credentials from environment
     const key = process.env.KUCOIN_KEY || '';
     const secret = process.env.KUCOIN_SECRET || '';
@@ -205,11 +136,7 @@ export async function checkOrderExecution(
 
     const signer = new KcSigner(key, secret, passphrase);
 
-    // Generate a unique client order ID
-    // const clientOid = crypto.randomUUID();
-
-    // const symbolValue=
-
+    
     //get adresses
     const requestPath = `/api/v1/hf/orders/${order_id}/?symbol=${coin1}-${coin2}`;
     const method = 'GET';
@@ -262,8 +189,12 @@ export async function checkOrderExecution(
         }
       }
     }
-  } catch (error) {
-    console.error('Ошибка в функции kukoin.services.js > checkOrderStatus |', error);
+  } catch (err) {
+    console.error('Ошибка в функции kukoin.services.js > checkOrderStatus |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -273,43 +204,7 @@ export async function checkOrderExecution(
 // получить число для округления
 export async function getWithdrawalInfo(coin, chain) {
   try {
-    // class KcSigner {
-    //   constructor(apiKey, apiSecret, apiPassphrase) {
-    //     this.apiKey = apiKey || '';
-    //     this.apiSecret = apiSecret || '';
-    //     this.apiPassphrase = apiPassphrase || '';
-
-    //     if (apiPassphrase && apiSecret) {
-    //       this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-    //     }
-
-    //     if (!apiKey || !apiSecret || !apiPassphrase) {
-    //       console.warn('API credentials are missing. Access will likely fail.');
-    //     }
-    //   }
-
-    //   sign(plain, key) {
-    //     return crypto.createHmac('sha256', key).update(plain).digest('base64');
-    //   }
-
-    //   headers(requestPath, method = 'POST', body = '') {
-    //     const timestamp = Date.now().toString();
-    //     const bodyString =
-    //       typeof body === 'object' ? JSON.stringify(body) : body;
-    //     const prehash =
-    //       timestamp + method.toUpperCase() + requestPath + bodyString;
-    //     const signature = this.sign(prehash, this.apiSecret);
-
-    //     return {
-    //       'KC-API-KEY': this.apiKey,
-    //       'KC-API-PASSPHRASE': this.apiPassphrase,
-    //       'KC-API-TIMESTAMP': timestamp,
-    //       'KC-API-SIGN': signature,
-    //       'KC-API-KEY-VERSION': '3',
-    //       'Content-Type': 'application/json',
-    //     };
-    //   }
-    // }
+    
 
     // Load API credentials from environment
     const key = process.env.KUCOIN_KEY || '';
@@ -345,8 +240,12 @@ export async function getWithdrawalInfo(coin, chain) {
       console.log('fr withdraw fn ', response.data);
       return { precision: response.data.data.precision, statusFn: 'ok' };
     }
-  } catch (error) {
-    console.error('Ошибка в функции kukoin.services.js > getWithdrawalInfo |', error);
+  } catch (err) {
+    console.error('Ошибка в функции kukoin.services.js > getWithdrawalInfo |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -357,44 +256,7 @@ export async function getWithdrawalInfo(coin, chain) {
 //отправить с биржи монеты в NP
 export async function makeWithdrawFromStockToNp(amount, coin, adress, chain) {
   try {
-    // class KcSigner {
-    //   constructor(apiKey, apiSecret, apiPassphrase) {
-    //     this.apiKey = apiKey || '';
-    //     this.apiSecret = apiSecret || '';
-    //     this.apiPassphrase = apiPassphrase || '';
-
-    //     if (apiPassphrase && apiSecret) {
-    //       this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-    //     }
-
-    //     if (!apiKey || !apiSecret || !apiPassphrase) {
-    //       console.warn('API credentials are missing. Access will likely fail.');
-    //     }
-    //   }
-
-    //   sign(plain, key) {
-    //     return crypto.createHmac('sha256', key).update(plain).digest('base64');
-    //   }
-
-    //   headers(requestPath, method = 'POST', body = '') {
-    //     const timestamp = Date.now().toString();
-    //     const bodyString =
-    //       typeof body === 'object' ? JSON.stringify(body) : body;
-    //     const prehash =
-    //       timestamp + method.toUpperCase() + requestPath + bodyString;
-    //     const signature = this.sign(prehash, this.apiSecret);
-
-    //     return {
-    //       'KC-API-KEY': this.apiKey,
-    //       'KC-API-PASSPHRASE': this.apiPassphrase,
-    //       'KC-API-TIMESTAMP': timestamp,
-    //       'KC-API-SIGN': signature,
-    //       'KC-API-KEY-VERSION': '3',
-    //       'Content-Type': 'application/json',
-    //     };
-    //   }
-    // }
-
+    
     // Load API credentials from environment
     const key = process.env.KUCOIN_KEY || '';
     const secret = process.env.KUCOIN_SECRET || '';
@@ -445,8 +307,12 @@ export async function makeWithdrawFromStockToNp(amount, coin, adress, chain) {
       console.log('fr withdraw fn ', response.data);
       return response.data.data.withdrawalId;
     }
-  } catch (error) {
-    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', error);
+  } catch (err) {
+    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -459,43 +325,7 @@ export async function makeWithdrawFromStockToNp(amount, coin, adress, chain) {
 //трансфер с Trade на Main аккаунт внутри биржи
 export async function transferInStock(coin, amount) {
   try {
-    // class KcSigner {
-    //   constructor(apiKey, apiSecret, apiPassphrase) {
-    //     this.apiKey = apiKey || '';
-    //     this.apiSecret = apiSecret || '';
-    //     this.apiPassphrase = apiPassphrase || '';
-
-    //     if (apiPassphrase && apiSecret) {
-    //       this.apiPassphrase = this.sign(apiPassphrase, apiSecret);
-    //     }
-
-    //     if (!apiKey || !apiSecret || !apiPassphrase) {
-    //       console.warn('API credentials are missing. Access will likely fail.');
-    //     }
-    //   }
-
-    //   sign(plain, key) {
-    //     return crypto.createHmac('sha256', key).update(plain).digest('base64');
-    //   }
-
-    //   headers(requestPath, method = 'POST', body = '') {
-    //     const timestamp = Date.now().toString();
-    //     const bodyString =
-    //       typeof body === 'object' ? JSON.stringify(body) : body;
-    //     const prehash =
-    //       timestamp + method.toUpperCase() + requestPath + bodyString;
-    //     const signature = this.sign(prehash, this.apiSecret);
-
-    //     return {
-    //       'KC-API-KEY': this.apiKey,
-    //       'KC-API-PASSPHRASE': this.apiPassphrase,
-    //       'KC-API-TIMESTAMP': timestamp,
-    //       'KC-API-SIGN': signature,
-    //       'KC-API-KEY-VERSION': '3',
-    //       'Content-Type': 'application/json',
-    //     };
-    //   }
-    // }
+   
 
     // Load API credentials from environment
     const key = process.env.KUCOIN_KEY || '';
@@ -543,8 +373,12 @@ export async function transferInStock(coin, amount) {
       console.log('средства отправлены с Trade на Main ');
       return { statusFn: 'ok' };
     }
-  } catch (error) {
-    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', error);
+  } catch (err) {
+    console.error('Ошибка в функции kukoin.services.js > makeWithdrawFromStockToNp |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }

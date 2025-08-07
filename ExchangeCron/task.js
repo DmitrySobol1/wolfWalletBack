@@ -190,8 +190,12 @@ export async function executeCheckTask() {
     return { success: true };
   }
 }
-  catch (error) {
-    console.error('Ошибка в CRON > ExchangeCron task.js |', error);
+  catch (err) {
+    console.error('Ошибка в CRON > ExchangeCron task.js |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }

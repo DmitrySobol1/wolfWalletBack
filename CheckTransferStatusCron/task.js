@@ -135,8 +135,12 @@ export async function executeCheckTask() {
         }
       }
     }
-  } catch (error) {
-    console.error('Ошибка в CRON > checkTransferStatusCron task.js |', error);
+  } catch (err) {
+    console.error('Ошибка в CRON > checkTransferStatusCron task.js |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -156,8 +160,12 @@ async function create2FAcode() {
     }
 
     return code;
-  } catch (error) {
-    console.error('Ошибка в функции create2FAcode |', error);
+  } catch (err) {
+    console.error('Ошибка в функции create2FAcode |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }

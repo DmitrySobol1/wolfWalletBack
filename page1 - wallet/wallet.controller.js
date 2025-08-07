@@ -1,4 +1,6 @@
-import { Router } from 'express';
+import e, { Router } from 'express';
+
+import { logger } from '../middlewares/error-logger.js';
 
 import UserModel from '../models/user.js';
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
@@ -17,9 +19,31 @@ import {
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  res.send('hello man 88');
+router.get('/test', async (req, res) => {
+  try {
+
+    const {par} = req.query
+
+    if(!par){
+      throw new Error('нет параметра par')
+    }
+
+    return res.json({ status: 'hello man 88' });
+  } catch (err) {
+    // logger.error('some error info')
+    logger.error({
+    title: 'ошибка тут: endpoint /test',
+    message: err.message,  
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+        
+    return res.status(400).json({ statusBE: 'notOk' });
+  }
 });
+
+
+
 
 // получение баланса+языка+валюты юзера, + tab "мои активы"  + для вывода в "пополнить"
 router.get('/get_balance_for_pay_out', async (req, res) => {
@@ -27,19 +51,25 @@ router.get('/get_balance_for_pay_out', async (req, res) => {
     const tlgid = req.query.tlgid;
 
     if (!tlgid) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет параметра tlgid');
     }
 
     const user = await UserModel.findOne({ tlgid: tlgid });
 
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('юзер не найден в бд');
     }
 
     const { language, valute, nowpaymentid } = user;
 
     if (nowpaymentid === 0) {
-      const { symbol } = await getSymbolAndKoef(valute);
+      const responseSymbol = await getSymbolAndKoef(valute);
+
+      if (!responseSymbol) {
+        throw new Error('нет ответа от функции getSymbolAndKoef');
+      }
+
+      const { symbol } = responseSymbol;
 
       const dataForFront = {
         balance: 0,
@@ -52,8 +82,21 @@ router.get('/get_balance_for_pay_out', async (req, res) => {
       return res.json({ dataForFront });
     } else {
       const cryptoPrices = await getCryptoPrices();
+      if (!cryptoPrices) {
+        throw new Error('нет ответа от функции getCryptoPrices');
+      }
+
       const userBalance = await getUserBalance(nowpaymentid);
-      const { fiatKoefficient, symbol } = await getSymbolAndKoef(valute);
+      if (!userBalance) {
+        throw new Error('нет ответа от функции getUserBalance');
+      }
+
+      const responseSymbol = await getSymbolAndKoef(valute);
+      if (!responseSymbol) {
+        throw new Error('нет ответа от функции getSymbolAndKoef');
+      }
+      const { fiatKoefficient, symbol } = responseSymbol;
+
       const arrayOfUserBalanceWithUsdPrice =
         await getArrayOfUserBalanceWithUsdPrice(
           userBalance,
@@ -61,15 +104,10 @@ router.get('/get_balance_for_pay_out', async (req, res) => {
           cryptoPrices,
           symbol
         );
-
-      if (
-        !cryptoPrices ||
-        !userBalance ||
-        !fiatKoefficient ||
-        !symbol ||
-        !arrayOfUserBalanceWithUsdPrice
-      ) {
-        return res.json({ statusBE: 'notOk' });
+      if (!arrayOfUserBalanceWithUsdPrice) {
+        throw new Error(
+          'нет ответа от функции getArrayOfUserBalanceWithUsdPrice'
+        );
       }
 
       // TODO: проверить верность подсчета коэффициента
@@ -91,26 +129,23 @@ router.get('/get_balance_for_pay_out', async (req, res) => {
       return res.json({ dataForFront });
     }
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      statusBE: 'notOk',
-      message: 'ошибка сервера',
-    });
+    console.error('endpoint wallet/get_balance_for_pay_out |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
 //tab "мои пополнения"
 router.get('/get_my_payin', async (req, res) => {
-
   try {
-
     const tlgid = req.query.tlgid;
 
-
     if (!tlgid) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не передан tlgid');
     }
-    
 
     const dataForFinding = {
       tlgid: tlgid,
@@ -155,10 +190,6 @@ router.get('/get_my_payin', async (req, res) => {
       stockOperations,
       stockOperationsLimit,
     } = await findDataInAllModels(dataForFinding);
-
-
-    
-
 
     if (
       (!payins &&
@@ -274,32 +305,29 @@ router.get('/get_my_payin', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в /api/get_my_payin:', err);
-    res.status(500).json({
-      statusBE: 'notOk',
-      message: 'Внутренняя ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /wallet/get_my_payin:', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
 //tab "мои выводы"
 router.get('/get_my_payout', async (req, res) => {
   try {
-
     const tlgid = req.query.tlgid;
-    
-    if (!tlgid) {
-      return res.json({ statusBE: 'notOk' });
-    }
 
-    
+    if (!tlgid) {
+      throw new Error('не передан tlgid');
+    }
 
     const user = await UserModel.findOne({ tlgid: tlgid });
 
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден юзер в бд');
     }
-
 
     const { ...userData } = user._doc;
     const nowpaymentid = userData.nowpaymentid;
@@ -455,13 +483,13 @@ router.get('/get_my_payout', async (req, res) => {
       data: total,
     });
   } catch (err) {
-    console.error('Ошибка в /api/get_my_payout:', err);
-    res.status(500).json({
-      statusBE: 'notOk',
-      message: 'Внутренняя ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /wallet/get_my_payout |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
 export const walletController = router;
-

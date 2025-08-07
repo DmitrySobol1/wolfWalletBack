@@ -3,20 +3,7 @@ const router = Router();
 
 
 import UserModel from '../models/user.js';
-import ComissionToPayoutModel from '../models/comissionToPayout.js';
-import ComissionToTransferModel from '../models/comissionToTransfer.js';
-import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
-import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
 import ComissionExchangeModel from '../models/comissionToExchange.js';
-import RqstPayInModel from '../models/rqstPayIn.js';
-import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
-import RqstExchangeSchemaModel from '../models/rqstExchange.js';
-import TradingPairsModel from '../models/tradingPairs.js';
-import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
-import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
-import StockAdressesModel from '../models/stockAdresses.js';
-import ComissionStockMarketModel from '../models/comissionStockMarket.js';
-import WorkingSocketModel from '../models/workingSocket.js';
 
 import {getMinAmountForDeposit, getBalance, getEstimatePricePair, getTokenFromNowPayment, makeWriteOff} from '../nowPayment/nowPayment.services.js'
 import {createRqstExchange} from '../modelsOperations/models.services.js'
@@ -30,16 +17,20 @@ router.get('/get_comissionExchange', async (req, res) => {
   try {
     const commissions = await ComissionExchangeModel.find().lean();
     if (!commissions || commissions.length == 0 ) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     res.json({
       status: 'success',
       data: commissions,
     });
-  } catch (error) {
-    console.error('Error in endpoint /get_comissionExchange')
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Error in endpoint /get_comissionExchange', err)
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+   return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -49,10 +40,15 @@ router.get('/get_minamount', async (req, res) => {
   try {
     const {coinFrom} = req.query
     if (!coinFrom ) {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('нет параметра coin');
     }
 
     const minAmount = await getMinAmountForDeposit(coinFrom);
+
+     if (!minAmount ) {
+        throw new Error('не ответат от функции getMinAmountForDeposit');
+      }
+
 
     return res.status(200).json({
       status: 'ok',
@@ -60,7 +56,11 @@ router.get('/get_minamount', async (req, res) => {
     });
   } catch (err) {
     console.error('Ошибка в /api/get_minamount:', err);
-    res.json({ statusBE: 'notOk' });
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+   return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -75,14 +75,14 @@ router.get('/get_balance_currentCoin', async (req, res) => {
 
     const { tlgid, coin } = req.query;
      if (!tlgid || !coin ) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет параметра coin или tlgid ');
     }
 
     console.log('step 1, tlgid=', tlgid, ' coin=', coin)
 
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     console.log('step 1', user)
@@ -91,7 +91,7 @@ router.get('/get_balance_currentCoin', async (req, res) => {
 
     const responseGetBalance = await getBalance(nowpaymentid)
     if (!getBalance) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции getBalance');
     }
 
     const userBalance = responseGetBalance.data.result.balances;
@@ -131,7 +131,11 @@ router.get('/get_balance_currentCoin', async (req, res) => {
 
   } catch (err) {
     console.error('Ошибка в /get_balance_currentCoin', err);
-    res.json({ statusBE: 'notOk' });
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -143,7 +147,7 @@ router.get('/get_conversion_rate', async (req, res) => {
     const { coinFrom, coinTo } = req.query;
     const amount = Number(req.query.amount);
     if (!coinFrom || !coinTo || !amount ) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет параметров');
     }
 
     console.log('coinFrom=', coinFrom)
@@ -152,7 +156,7 @@ router.get('/get_conversion_rate', async (req, res) => {
 
     const response = await getEstimatePricePair(amount,coinFrom,coinTo)
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+       throw new Error('нет ответа от функции getEstimatePricePair');
     }
 
     const convertedAmount = response.data.estimated_amount;
@@ -163,7 +167,11 @@ router.get('/get_conversion_rate', async (req, res) => {
     });
   } catch (err) {
     console.error('Ошибка в /exchange/get_conversion_rate:', err);
-    res.json({ statusBE: 'notOk' });
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -175,19 +183,19 @@ router.post('/rqst_fromUser_toMaster', async (req, res) => {
 
     const {tlgid, coinFrom, amount, convertedAmount, coinTo, nowpaymentComission, ourComission  } = req.body
     if (!tlgid || !coinFrom || !amount || !convertedAmount || !coinTo ) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет параметров');
     }
 
     
     const token = await getTokenFromNowPayment();
     if (!token) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции getTokenFromNowPayment');
     }
 
     // найти nowPayment id по тлг id
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     const nowpaymentid = user._doc.nowpaymentid;
@@ -201,7 +209,7 @@ router.post('/rqst_fromUser_toMaster', async (req, res) => {
 
     const response = await makeWriteOff(token, requestData)
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не овтета от makeWriteOff');
     }
 
 
@@ -224,7 +232,7 @@ router.post('/rqst_fromUser_toMaster', async (req, res) => {
       const createRqst = await createRqstExchange(data)  
 
       if (!createRqst) {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('не овтета от createRqstExchange');
       }
       
 
@@ -232,11 +240,12 @@ router.post('/rqst_fromUser_toMaster', async (req, res) => {
         return res.json({ status: 'OK' });
       }
     }
-  } catch (error) {
-    console.error('Error in /exchange/rqst_fromUser_toMaster', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в /exchange/rqst_fromUser_toMaster', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return res.json({ statusBE: 'notOk' });
   }
 });

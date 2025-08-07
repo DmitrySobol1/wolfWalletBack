@@ -1,18 +1,10 @@
 import UserModel from '../models/user.js';
-import ComissionToPayoutModel from '../models/comissionToPayout.js';
-import ComissionToTransferModel from '../models/comissionToTransfer.js';
 import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
 import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
-import ComissionExchangeModel from '../models/comissionToExchange.js';
 import RqstPayInModel from '../models/rqstPayIn.js';
 import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
 import RqstExchangeSchemaModel from '../models/rqstExchange.js';
-import TradingPairsModel from '../models/tradingPairs.js';
-import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
-import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
-import StockAdressesModel from '../models/stockAdresses.js';
 import ComissionStockMarketModel from '../models/comissionStockMarket.js';
-import WorkingSocketModel from '../models/workingSocket.js';
 
 export async function createNewUser(tlgid) {
   try {
@@ -35,8 +27,12 @@ export async function createNewUser(tlgid) {
     }
 
     return { status: 'created' };
-  } catch (error) {
-    console.error('Ошибка в функции models.services.js > createNewUser', error);
+  } catch (err) {
+    console.error('Ошибка в функции models.services.js > createNewUser', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }

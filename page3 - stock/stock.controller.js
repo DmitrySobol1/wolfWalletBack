@@ -3,25 +3,21 @@ const router = Router();
 
 import axios from 'axios';
 
+import { logger } from '../middlewares/error-logger.js'
+
 import { getPrice } from '../stockKukoin/kukoin.services.js';
 
-import { getMinDeposit, getTokenFromNowPayment, makeWriteOff } from '../nowPayment/nowPayment.services.js';
+import {
+  getMinDeposit,
+  getTokenFromNowPayment,
+  makeWriteOff,
+} from '../nowPayment/nowPayment.services.js';
 
 import UserModel from '../models/user.js';
-import ComissionToPayoutModel from '../models/comissionToPayout.js';
-import ComissionToTransferModel from '../models/comissionToTransfer.js';
-import RqstTrtFromUserToMainModel from '../models/rqstTrtFromUserToMain.js';
-import VerifiedPayoutsModel from '../models/verifiedPayouts.js';
-import ComissionExchangeModel from '../models/comissionToExchange.js';
-import RqstPayInModel from '../models/rqstPayIn.js';
-import RqstTransferToOtherUserModel from '../models/rqstTransferToOtherUser.js';
-import RqstExchangeSchemaModel from '../models/rqstExchange.js';
 import TradingPairsModel from '../models/tradingPairs.js';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
-import StockAdressesModel from '../models/stockAdresses.js';
 import ComissionStockMarketModel from '../models/comissionStockMarket.js';
-import WorkingSocketModel from '../models/workingSocket.js';
 
 export const stockController = router;
 
@@ -30,16 +26,20 @@ router.get('/get_stock_pairs', async (req, res) => {
   try {
     const pairs = await TradingPairsModel.find().lean();
     if (!pairs || pairs.length == 0) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     res.json({
       status: 'success',
       data: pairs,
     });
-  } catch (error) {
-    console.error('Error in endpoint /stock/get_stock_pairs');
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Error in endpoint /stock/get_stock_pairs', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -48,18 +48,22 @@ router.get('/get_ticker', async (req, res) => {
   try {
     const { pair } = req.query;
     if (!pair) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет параметра');
     }
 
     const response = await getPrice(pair);
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции getPrice');
     }
 
     return res.json(response.data);
-  } catch (error) {
-    console.error('Error in endpoint /stock/get_ticker');
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Error in endpoint /stock/get_ticker', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -71,13 +75,17 @@ router.get('/get_ourComissionStockMarket', async (req, res) => {
     });
 
     if (!comission) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     return res.json({ comission: comission.qty, statusFn: 'ok' });
-  } catch (error) {
-    console.error('Error in endpoint /stock/get_ourComissionStockMarket');
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Error in endpoint /stock/get_ourComissionStockMarket', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -112,9 +120,13 @@ router.get('/get_minWithdrawNp', async (req, res) => {
         result: response.data.result,
       });
     }
-  } catch (error) {
-    console.error('Ошибка в endpoint /stock/get_minWithdrawNp | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint /stock/get_minWithdrawNp | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -153,9 +165,13 @@ router.get('/get_minDepositWithdrawStock', async (req, res) => {
     } else {
       throw new Error('не верные данные от Kukoin');
     }
-  } catch (error) {
-    console.error('Ошибка в endpoint /get_minDepositWithdrawStock | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint /get_minDepositWithdrawStock | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -163,16 +179,22 @@ router.get('/get_minDepositNp', async (req, res) => {
   try {
     const { coin } = req.query;
 
-    const response = await getMinDeposit(coin);
-
+    // const response = await getMinDeposit(coin);
+    const response = await getMinDeposit('ccc');
+    
     if (!response) {
       throw new Error('нет ответа от функции getMinDeposit');
     }
 
     res.json({ result: response.data.min_amount });
-  } catch (error) {
-    console.error('Ошибка в endpoint stock/get_minDepositNp | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+     logger.error('Ошибка в endpoint /get_minDepositNp | ', err.message);
+     logger.error({
+     dataFromServer: err.response?.data,
+     statusFromServer: err.response?.status,
+    });
+
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -304,9 +326,13 @@ router.get('/get_myOpenOrders', async (req, res) => {
       count: total.length,
       data: total,
     });
-  } catch (error) {
-    console.error('Ошибка в endpoint stock/get_myOpenOrders | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint stock/get_myOpenOrders | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -444,20 +470,31 @@ router.get('/get_myDoneOrders', async (req, res) => {
       count: total.length,
       data: total,
     });
-  } catch (error) {
-    console.error('Ошибка в endpoint stock/get_myDoneOrders | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint stock/get_myDoneOrders | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
-
-
 
 //новая заявка на биржу - marketorder
 router.post('/new_stockorder_market', async (req, res) => {
   try {
-
-    const {tlgid, coin1short, coin2short,  coin1full,  coin2full, amount, type, coin1chain, coin2chain, helptext} = req.body
-
+    const {
+      tlgid,
+      coin1short,
+      coin2short,
+      coin1full,
+      coin2full,
+      amount,
+      type,
+      coin1chain,
+      coin2chain,
+      helptext,
+    } = req.body;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
@@ -492,7 +529,7 @@ router.post('/new_stockorder_market', async (req, res) => {
       };
     }
 
-    const response = await makeWriteOff(token, requestData)
+    const response = await makeWriteOff(token, requestData);
     if (!response) {
       throw new Error('функция makeWriteOff не вернула ответ');
     }
@@ -540,33 +577,45 @@ router.post('/new_stockorder_market', async (req, res) => {
       amountAccordingBaseIncrement: null,
       amountSentBackToNp: null,
       amountBeReceivedByStock: null,
-      isOperated: false
+      isOperated: false,
     });
 
-     if (!doc) {
+    if (!doc) {
       throw new Error('не сохранилось в БД RqstStockMarketOrderModel');
     }
 
     await doc.save();
 
     return res.json({ statusFn: 'saved' });
-  } catch (error) {
-    console.error('Ошибка в endpoint stock/new_stockorder_market | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint stock/new_stockorder_market | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });
-
-
-
 
 //новая заявка на биржу - limitOrder
 router.post('/new_stockorder_limit', async (req, res) => {
   try {
-
-    const {tlgid, coin1short, coin2short,  coin1full,  coin2full, amount, type, coin1chain, coin2chain, helptext, limitPrice} = req.body
+    const {
+      tlgid,
+      coin1short,
+      coin2short,
+      coin1full,
+      coin2full,
+      amount,
+      type,
+      coin1chain,
+      coin2chain,
+      helptext,
+      limitPrice,
+    } = req.body;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
-     if (!user) {
+    if (!user) {
       throw new Error('не найден user в UserModel');
     }
 
@@ -598,8 +647,7 @@ router.post('/new_stockorder_limit', async (req, res) => {
       };
     }
 
-
-    const response = await makeWriteOff(token, requestData)
+    const response = await makeWriteOff(token, requestData);
     if (!response) {
       throw new Error('функция makeWriteOff не вернула ответ');
     }
@@ -607,7 +655,6 @@ router.post('/new_stockorder_limit', async (req, res) => {
     let errorText = '';
     let statusText = 'error';
     let id_clientToMaster = null;
-
 
     if (response.data.result.status === 'PROCESSING') {
       id_clientToMaster = response.data.result.id;
@@ -618,7 +665,7 @@ router.post('/new_stockorder_limit', async (req, res) => {
     }
 
     //записать инфо в БД
-    const pair = `${coin1short}-${coin2short}`
+    const pair = `${coin1short}-${coin2short}`;
 
     const doc = new RqstStockLimitOrderModel({
       id_clientToMaster: id_clientToMaster,
@@ -628,7 +675,7 @@ router.post('/new_stockorder_limit', async (req, res) => {
       tlgid: tlgid,
       userNP: nowpaymentid,
       type: type,
-      pair: pair,  
+      pair: pair,
       coin1short: coin1short,
       coin1full: coin1full,
       coin1chain: coin1chain,
@@ -651,7 +698,7 @@ router.post('/new_stockorder_limit', async (req, res) => {
       trtCoinFromStockToNP_stock_id: null,
       amountAccordingBaseIncrement: null,
       amountSentBackToNp: null,
-      amountBeReceivedByStock: null
+      amountBeReceivedByStock: null,
     });
 
     if (!doc) {
@@ -661,8 +708,12 @@ router.post('/new_stockorder_limit', async (req, res) => {
     await doc.save();
 
     return res.json({ statusFn: 'saved' });
-  } catch (error) {
-    console.error('Ошибка в endpoint stock/new_stockorder_limit | ', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Ошибка в endpoint stock/new_stockorder_limit | ', err);
+    console.error({
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
   }
 });

@@ -26,7 +26,7 @@ router.get('/get_info_for_payout', async (req, res) => {
     const response = await getMinAmountToWithdraw(req.query.coin);
 
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции getMinAmountToWithdraw');
     }
 
     let status = false;
@@ -41,6 +41,8 @@ router.get('/get_info_for_payout', async (req, res) => {
     const comission = await ComissionToPayoutModel.findOne({
       coin: req.query.coin,
     });
+
+
     if (comission) {
       ourComission = Number(comission.qty);
     }
@@ -59,10 +61,12 @@ router.get('/get_info_for_payout', async (req, res) => {
       coin: req.query.coin,
     });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /payout/get_info_for_payout |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -75,15 +79,17 @@ router.get('/get_withdrawal_fee', async (req, res) => {
     const response = await getPayoutFee(coin, amount);
 
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции getPayoutFee');
     }
 
     return res.json({ networkFees:response.data.fee });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /payout/get_withdrawal_fee |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -96,20 +102,22 @@ router.post('/validate_adress', async (req, res) => {
     const validateResult = await validateAdress(req.body.adress, req.body.coin);
 
      if (!validateResult) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции validateAdress');
     }
 
 
     if (validateResult === 'OK') {
       return res.json(validateResult);
     } else {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не верный ответ от функции validateAdress');
     }
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /payout/validate_adress |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -123,13 +131,13 @@ router.post('/rqst_to_payout', async (req, res) => {
 
     const token = await getTokenFromNowPayment();
      if (!token) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции getTokenFromNowPayment');
     }
 
     // найти nowPayment id по тлг id
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
     const nowpaymentid = user._doc.nowpaymentid;
 
@@ -141,7 +149,7 @@ router.post('/rqst_to_payout', async (req, res) => {
 
     const response = await makeWriteOff(token,requestData)
     if (!response?.data?.result?.status) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции makeWriteOff');
     }
 
 
@@ -165,18 +173,23 @@ router.post('/rqst_to_payout', async (req, res) => {
       const createRqst = await createRqstTrtFromuserToMain(data);
 
       if (!createRqst) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от функции createRqstTrtFromuserToMain');
     }
 
       if (createRqst === 'created') {
         return res.json({ status: 'OK' });
       }
     }
-  } catch (error) {
-    console.error('Error in endpoint /rqst_to_payout', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Ошибка в endpoint /payout/rqst_to_payout |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
+
 });
+
+
+

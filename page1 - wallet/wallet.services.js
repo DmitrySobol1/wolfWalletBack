@@ -7,11 +7,15 @@ import RqstExchangeSchemaModel from '../models/rqstExchange.js';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
 
+
+
+
 // получение данных о стоимости крипты
 export async function getCryptoPrices() {
   const response = await axios.get('https://api.coinlore.net/api/tickers/');
   return response.data.data;
 }
+
 
 // определить значок валюты
 export async function getSymbol(valute) {
@@ -26,6 +30,7 @@ export async function getSymbol(valute) {
 
 // получить баланс юзера
 export async function getUserBalance(nowpaymentid) {
+  try {
   const response = await axios.get(
     `https://api.nowpayments.io/v1/sub-partner/balance/${nowpaymentid}`,
     {
@@ -34,11 +39,27 @@ export async function getUserBalance(nowpaymentid) {
       },
     }
   );
+
+  if (!response){
+      throw new Error('нет ответа от NP')
+  }
+
   return response.data.result.balances;
+  } catch (err) {
+    console.error('ошибка в функции getUserBalance |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return 
+  }
 }
 
 // Расчеты для баланса
 export async function getUserBalanceInUsd(userBalance, cryptoPrices) {
+
+  try {
+
   const arrayOfUserBalance = Object.entries(userBalance).map(
     ([key, value]) => ({
       currency: key, // кладем ключ внутрь объекта
@@ -77,10 +98,19 @@ export async function getUserBalanceInUsd(userBalance, cryptoPrices) {
   );
 
   return userBalanceInUsd;
+  } catch (err) {
+    console.error('ошибка в функции getUserBalanceInUsd |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return 
+  }
 }
 
 // получение курса доллара в валюте клиента
 export async function getResultForFront(valute, language, userBalanceInUsd) {
+  try {
   if (valute === 'usd') {
     const roundedBalance = parseFloat(userBalanceInUsd.toFixed(2));
     return {
@@ -91,6 +121,11 @@ export async function getResultForFront(valute, language, userBalanceInUsd) {
     };
   } else if (valute === 'eur') {
     const balance = await Convert(userBalanceInUsd).from('USD').to('EUR');
+
+     if (!balance){
+       throw new Error('нет ответа от фунции Convert')
+      }
+
     const roundedBalance = parseFloat(balance.toFixed(2));
     return {
       balance: roundedBalance,
@@ -100,6 +135,10 @@ export async function getResultForFront(valute, language, userBalanceInUsd) {
     };
   } else if (valute === 'rub') {
     const balance = await Convert(userBalanceInUsd).from('USD').to('RUB');
+     if (!balance){
+       throw new Error('нет ответа от фунции Convert')
+      }
+
     const roundedBalance = parseFloat(balance.toFixed(2));
     return {
       balance: roundedBalance,
@@ -107,6 +146,14 @@ export async function getResultForFront(valute, language, userBalanceInUsd) {
       symbol: '₽',
       language: language,
     };
+  } 
+} catch (err) {
+    console.error('ошибка в функции getResultForFront |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return 
   }
 }
 
@@ -117,6 +164,7 @@ export async function getArrayOfUserBalanceWithUsdPrice(
   cryptoPrices,
   symbol
 ) {
+  try {
   // Преобразовываем объект в массив объектов
   const arrayOfUserBalance = Object.entries(userBalance).map(
     ([key, value]) => ({
@@ -166,21 +214,48 @@ export async function getArrayOfUserBalanceWithUsdPrice(
     .filter(Boolean); // Удаляет null/undefined из массива;
 
   return arrayOfUserBalanceWithUsdPrice;
+  }  catch (err) {
+    console.error('ошибка в функции getArrayOfUserBalanceWithUsdPrice |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return 
+  }
 }
 
 
 export async function getSymbolAndKoef(valute) {
+  try {
   let fiatKoefficient = 1;
   let symbol = '$';
 
   if (valute === 'eur') {
     fiatKoefficient = await Convert(1).from('USD').to('EUR');
+
+     if (!fiatKoefficient){
+       throw new Error('нет ответа от фунции Convert')
+      }
+
     symbol = '€';
   } else if (valute === 'rub') {
+   
     fiatKoefficient = await Convert(1).from('USD').to('RUB');
-    symbol = '₽';
+     if (!fiatKoefficient){
+       throw new Error('нет ответа от фунции Convert')
+      }
+   
+      symbol = '₽';
   }
   return { fiatKoefficient, symbol };
+} catch (err) {
+    console.error('ошибка в функции getSymbolAndKoef |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return 
+  }
 }
 
 

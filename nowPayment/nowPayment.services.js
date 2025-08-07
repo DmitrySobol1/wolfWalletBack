@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-import { createNewRqstPayIn } from '../modelsOperations/models.services.js';
+import { logger } from '../middlewares/error-logger.js'
+
 
 export async function getAvailableCoins() {
   const response = await axios.get(
@@ -67,12 +68,13 @@ export async function createUserInNowPayment(token, tlgid) {
     }
 
     return response.data.result.id;
-  } catch (error) {
-    console.error('Error in createUserInNowPayment:', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to create user: ${error.message}`);
+  } catch (err) {
+    console.error('Error in createUserInNowPayment:', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 }
 
@@ -157,12 +159,13 @@ export async function createPayAdress(
     // return response.data.result.pay_address;
     return response.data.result;
     
-  } catch (error) {
-    console.error('Error in createPayAdress:', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to create user: ${error.message}`);
+  } catch (err) {
+    console.error('Error in createPayAdress:', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 }
 
@@ -182,12 +185,13 @@ export async function getMinAmountToWithdraw(coin) {
     );
 
     return response;
-  } catch (error) {
-    console.error('Error in getMinAmountToWithdraw:', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to create user: ${error.message}`);
+  } catch (err) {
+    console.error('Error in getMinAmountToWithdraw:', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 }
 
@@ -211,11 +215,12 @@ export async function getPayoutFee(coin, amount) {
     }
 
     return response;
-  } catch (error) {
-    console.error(
-      'Ошибка в функции nowPayment.services.js > getPayoutFee |',
-      error
-    );
+  } catch (err) {
+    console.error('Ошибка в функции nowPayment.services.js > getPayoutFee |', err );
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
   }
 }
 
@@ -249,12 +254,13 @@ export async function validateAdress(adress, coin) {
     } else {
       return;
     }
-  } catch (error) {
-    console.error('Error in validateAdress', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in validateAdress', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 }
 
@@ -281,12 +287,13 @@ export async function makeWriteOff(token, requestData) {
     }
 
     return response;
-  } catch (error) {
-    console.error('Error in makeWriteOff', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in makeWriteOff', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -311,12 +318,13 @@ export async function checkIfUserExist(token, adress) {
     }
 
     return response;
-  } catch (error) {
-    console.error('Error in checkIfUserExist', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in checkIfUserExist', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -343,12 +351,13 @@ export async function makeTransferResponse(token, requestData) {
     }
 
     return transferResponse;
-  } catch (error) {
-    console.error('Error in makeTransferResponse', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in makeTransferResponse', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -368,12 +377,13 @@ export async function getBalance(nowpaymentid) {
     }
 
     return response;
-  } catch (error) {
-    console.error('Error in getBalance', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in getBalance', err)
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -393,12 +403,14 @@ export async function getEstimatePricePair(amount, coinFrom, coinTo) {
     }
 
     return response;
-  } catch (error) {
-    console.error('Error in getEstimatePricePair', {
-      error: error.response?.data || error.message,
-      status: error.response?.status,
-    });
-    throw new Error(`Error adress: ${error.message}`);
+  } catch (err) {
+    console.error('Error in getEstimatePricePair', err)
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
+    
   }
 }
 
@@ -418,11 +430,10 @@ export async function getMinDeposit(coin) {
     }
 
     return response;
-  } catch (error) {
-    console.error(
-      'Ошибка в функции nowPayment.services.js > getMinDeposit |',
-      error
-    );
+  } catch (err) {
+    logger.error('Ошибка в функции nowPayment.services.js > getMinDeposit |');
+    logger.error({dataFromServer: err.response?.data,});
+  return
   }
 }
 
@@ -450,11 +461,16 @@ export async function createpayout(requestData, token) {
     }
 
     return response.data;
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > createpayout |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -486,11 +502,16 @@ export async function verifyPayout(withdrawal_id, code2fa, token) {
     }
 
     return response.data;
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > verifyPayout |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -512,11 +533,16 @@ export async function getTransfer(token, transferID) {
     }
 
     return response.data.result;
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > getTransfer |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -549,11 +575,16 @@ export async function createConversion(token, amount, coinFrom, coinTo) {
     if (response.data.result.status === 'WAITING') {
       return { status: 'ok', id: response.data.result.id };
     }
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > getcreateConversionTransfer |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 }
 
@@ -580,11 +611,15 @@ export async function getConversionStatus(token, id) {
     }
 
     return response.data.result;
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > getcreateConversionTransfer |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -621,11 +656,15 @@ export async function depositFromMasterToClient(coinTo, amountTo, userNP, token)
     return { status: 'ok', id: response.data.result.id };
   } 
   }
-  catch (error) {
+  catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > depositFromMasterToClient |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
@@ -637,7 +676,7 @@ export async function getPaymentStatus(paymentID) {
 
     if (!paymentID) {
       throw new Error(
-        'нет павраметра paymentID'
+        'нет параметра paymentID'
       );
     }
 
@@ -660,11 +699,15 @@ export async function getPaymentStatus(paymentID) {
 
   return { result: 'ok', payStatus: response.data.payment_status };
   }
-   catch (error) {
+   catch (err) {
     console.error(
       'Ошибка в функции nowPayment.services.js > getPaymentStatus |',
-      error
+      err
     );
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }

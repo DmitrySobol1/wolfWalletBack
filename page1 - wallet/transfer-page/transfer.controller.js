@@ -24,7 +24,7 @@ router.get('/get_transfer_fee', async (req, res) => {
   try {
     const { coin, tlgid } = req.query;
     if (!coin || !tlgid) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не переданы coin или tlgid');
     }
 
     let fees = {}
@@ -43,7 +43,7 @@ router.get('/get_transfer_fee', async (req, res) => {
       tlgid: tlgid,
     });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     const selfNowpaymentid = user.nowpaymentid;
@@ -58,11 +58,13 @@ router.get('/get_transfer_fee', async (req, res) => {
     
 
     return res.json(response);
-  } catch (error) {
-    return res.status(500).json({
-      status: 'error',
-      message: 'ошибка сервера',
-    });
+  } catch (err) {
+    console.error('Ошибка в endpoint /transfer/get_transfer_fee |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -71,25 +73,27 @@ router.post('/get_user', async (req, res) => {
   try {
     const { adress } = req.body;
     if (!adress) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не передан adress');
     }
 
     const token = await getTokenFromNowPayment();
     if (!token) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('ошибка в функции getTokenFromNowPayment');
     }
 
     const response = await checkIfUserExist(token, adress);
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('ошибка в функции checkIfUserExist');
     }
 
     return res.json({ count: response.data.count });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /transfer/get_usere |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -100,13 +104,13 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
 
     if (!coin || !sum || !tlgid || !adress || ourComission==null ) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не передан один из параметров');
     }
 
     // найти nowPayment id по тлг id
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден в бд');
     }
 
     console.log('step 1', user);
@@ -120,7 +124,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
     const token = await getTokenFromNowPayment();
     if (!token) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от getTokenFromNowPayment');
     }
 
     console.log('step 1_2', token);
@@ -138,7 +142,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
       const response = await makeWriteOff(token, requestData);
 
       if (!response?.data?.result?.status) {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('нет ответа от makeWriteOff');
       }
 
 
@@ -164,7 +168,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
         item_id = await createRqstTransferToOtherUserModel(data);
         if (!item_id || item_id == '') {
-          return res.json({ statusBE: 'notOk' });
+          throw new Error('нет ответа от createRqstTransferToOtherUserModel');
         }
 
         console.log('step 4 ifNe0 RQST=', item_id);
@@ -190,7 +194,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
       item_id = await createRqstTransferToOtherUserModel(data);
       if (!item_id || item_id == '') {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('нет ответа от createRqstTransferToOtherUserModel');
       }
 
       console.log('step 4 if0 RQST=', item_id);
@@ -207,7 +211,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
 
     const transferResponse = await makeTransferResponse(token, requestData);
     if (!transferResponse?.data?.result?.id) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от makeTransferResponse');
     }
 
     const transactionId_transferToUser = transferResponse.data.result.id;
@@ -227,5 +231,12 @@ router.post('/rqst_to_transfer', async (req, res) => {
     console.log('success finished')
 
     return res.json({ status: 'OK' });
-  } catch {}
+  } catch (err) {
+    console.error('Ошибка в endpoint /transfer/rqst_to_transfer |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
+  }
 });

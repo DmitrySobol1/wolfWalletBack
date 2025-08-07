@@ -10,7 +10,7 @@ import {
   createPayAdress,
 } from '../../nowPayment/nowPayment.services.js';
 
-import { createNewRqstPayIn } from '../../modelsOperations/models.services.js'
+import { createNewRqstPayIn } from '../../modelsOperations/models.services.js';
 
 const router = Router();
 
@@ -22,44 +22,41 @@ router.get('/get_available_coins', async (req, res) => {
     const response = await getAvailableCoins();
 
     if (!response) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции getAvailableCoins');
     }
 
     return res.json(response);
   } catch (err) {
-    console.log(err);
-    res.json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /payin/get_my_payout |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
 // получение информации, чтобы вернуть адресс и мин сумму пополнения, создать ЛК юзера в NP ?
 router.post('/get_info_for_payinadress', async (req, res) => {
   try {
-
-    
-    
-    const { tlgid, coin  }  = req.body
+    const { tlgid, coin } = req.body;
 
     const user = await UserModel.findOne({ tlgid: tlgid });
     if (!user) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('не найден юзер в бд');
     }
-
-    
 
     const { ...userData } = user._doc;
 
     const token = await getTokenFromNowPayment();
     if (!token) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции getTokenFromNowPayment');
     }
 
     if (userData.nowpaymentid === 0) {
       const nowpaymentid = await createUserInNowPayment(token, tlgid);
       if (!nowpaymentid) {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('нет ответа от фунции createUserInNowPayment');
       }
 
       //записать nowpaymentid в БД
@@ -69,17 +66,16 @@ router.post('/get_info_for_payinadress', async (req, res) => {
         { new: true } // Вернуть обновленную запись
       );
       if (!updatedUser) {
-        return res.json({ statusBE: 'notOk' });
+        throw new Error('не найден в бд');
       }
       const { ...userData } = updatedUser._doc;
     }
 
     const minAmount = await getMinAmountForDeposit(coin);
     if (!minAmount) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции getMinAmountForDeposit');
     }
 
-    
     //чтобы исключить колебание мин кол-ва, пока обрабатывается запрос
     const minAmountPlus5Percent = minAmount + minAmount * 0.05;
 
@@ -91,29 +87,33 @@ router.post('/get_info_for_payinadress', async (req, res) => {
       'payin'
     );
     if (!payAdressObj) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции createPayAdress');
     }
 
-    const actualPayAdress = payAdressObj.pay_address
+    const actualPayAdress = payAdressObj.pay_address;
 
-
-    const modelResp = await createNewRqstPayIn(payAdressObj, tlgid, userData.nowpaymentid);
+    const modelResp = await createNewRqstPayIn(
+      payAdressObj,
+      tlgid,
+      userData.nowpaymentid
+    );
 
     if (!modelResp) {
-      return res.json({ statusBE: 'notOk' });
+      throw new Error('нет ответа от фунции createNewRqstPayIn');
     }
-    
+
     const objToFront = {
       minAmount,
       payAdress: actualPayAdress,
     };
-    
 
     return res.json(objToFront);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: 'ошибка сервера',
-    });
+    console.error('Ошибка в endpoint /payin/get_info_for_payinadress |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  }); 
+    return res.json({ statusBE: 'notOk' });
   }
 });

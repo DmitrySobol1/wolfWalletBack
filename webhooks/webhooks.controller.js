@@ -1,7 +1,5 @@
 import { Router } from 'express';
-import axios from 'axios';
 
-import crypto from 'crypto';
 
 const router = Router();
 
@@ -46,8 +44,12 @@ router.post('/webhook', async (req, res) => {
 
     // 5. Обработка вебхука (с обработкой ошибок)
     await processWebhookPayout(payload);
-  } catch (error) {
-    console.error('Ошибка в /wh/webhook, вебхук "вывода" |', error);
+  } catch (err) {
+    console.error('Ошибка в /wh/webhook, вебхук "вывода" |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
   }
 });
 
@@ -88,8 +90,12 @@ router.post('/webhook_payin', async (req, res) => {
     await processWebhookPayin(payload);
 
     
-  } catch (error) {
-    console.error('Ошибка в /wh/webhook_payin, вебхук "ввода средств" |', error);
+  } catch (err) {
+    console.error('Ошибка в /wh/webhook_payin, вебхук "ввода средств" |', err);
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
   }
 });
 
@@ -136,11 +142,15 @@ router.post('/webhook_forstock', async (req, res) => {
     } else {
       console.log('статус не finished, не обрабатываем');
     }
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в /wh/webhook_forstock, вебхук для обработки "прихода денег на биржу при маркет ордере',
-      error
+      err
     );
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
   }
 });
 
@@ -179,11 +189,15 @@ router.post('/webhook_forstock_limit', async (req, res) => {
     } else {
       console.log('статус не finished, не обрабатываем');
     }
-  } catch (error) {
+  } catch (err) {
     console.error(
       'Ошибка в /wh/webhook_forstock_limit, вебхук для обработки "прихода денег на биржу при лимит ордере',
-      error
+      err
     );
+    console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
   }
 });
 

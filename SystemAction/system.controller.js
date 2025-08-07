@@ -37,9 +37,13 @@ router.post('/enter', async (req, res) => {
     const { _id, ...userData } = user._doc;
     userData.result = 'showWalletPage';
     return res.json({ userData });
-  } catch (error) {
-    console.error('Error in endpoint /system/enter', error);
-    res.json({ statusBE: 'notOk' });
+  } catch (err) {
+    console.error('Error in endpoint /system/enter', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return res.json({ statusBE: 'notOk' });
   }
 });
 
@@ -56,8 +60,13 @@ router.post('/change_valute', async (req, res) => {
     }
 
     return res.json({ status: 'changed' });
-  } catch (error) {
-    console.error('Error in endpoint /system/change_valute', error);
+  } catch (err) {
+    console.error('Error in endpoint /system/change_valute', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+    return
   }
 });
 
@@ -74,8 +83,13 @@ router.post('/change_language', async (req, res) => {
     }
 
     return res.json({ status: 'changed' });
-  } catch (error) {
-    console.error('Error in endpoint /system/change_language', error);
+  } catch (err) {
+    console.error('Error in endpoint /system/change_language', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
+  return
   }
 });
 
@@ -100,8 +114,12 @@ router.post('/get_user_id', async (req, res) => {
 
 
     return res.json({ nowpaymentid: nowpaymentid });
-  } catch (error) {
-    console.error('Error in endpoint /system/get_user_id', error);
+  } catch (err) {
+    console.error('Error in endpoint /system/get_user_id', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return res.json({ statusBE: 'notOk' });
   }
 });
@@ -139,8 +157,12 @@ router.post('/create_user_NpId', async (req, res) => {
 
 
     return res.json({ nowpaymentid: nowpaymentid });
-  } catch (error) {
-    console.error('Ошибка в endpoint system/create_user_NpId |', error);
+  } catch (err) {
+    console.error('Ошибка в endpoint system/create_user_NpId |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return res.json({ statusBE: 'notOk' });
   }
 });

@@ -155,8 +155,12 @@ export async function executeCheckTask2() {
         }
       }
     }
-  } catch (error) {
-    console.error('Ошибка в CRON > TransferToOtherUserCron task.js |', error);
+  } catch (err) {
+    console.error('Ошибка в CRON > TransferToOtherUserCron task.js |', err);
+     console.error({
+    dataFromServer: err.response?.data,
+    statusFromServer: err.response?.status
+  });
     return;
   }
 }
