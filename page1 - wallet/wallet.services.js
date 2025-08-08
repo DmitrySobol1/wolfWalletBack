@@ -265,7 +265,7 @@ export async function findDataInAllModels(datas) {
 
   const modelRegistry = {
     RqstPayInModel,
-    RqstTransferToOtherUserModel,
+    // RqstTransferToOtherUserModel,
     RqstExchangeSchemaModel,
     RqstStockMarketOrderModel,
     RqstStockLimitOrderModel,

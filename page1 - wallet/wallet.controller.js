@@ -148,6 +148,15 @@ router.get('/get_my_payin', async (req, res) => {
       throw new Error('не передан tlgid');
     }
 
+
+    const transfers = await RqstTransferToOtherUserModel.find({
+      statusAll: 'finished',
+      toUserTlgid: tlgid,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+
     const dataForFinding = {
       tlgid: tlgid,
       models: [
@@ -157,12 +166,12 @@ router.get('/get_my_payin', async (req, res) => {
           statusValue: 'payment_status',
           statusKey: 'finished',
         },
-        {
-          name: 'transfers',
-          modelName: 'RqstTransferToOtherUserModel',
-          statusValue: 'statusAll',
-          statusKey: 'finished',
-        },
+        // {
+        //   name: 'transfers',
+        //   modelName: 'RqstTransferToOtherUserModel',
+        //   statusValue: 'statusAll',
+        //   statusKey: 'finished',
+        // },
         {
           name: 'exchange',
           modelName: 'RqstExchangeSchemaModel',
@@ -186,7 +195,7 @@ router.get('/get_my_payin', async (req, res) => {
 
     const {
       payins,
-      transfers,
+      // transfers,
       exchange,
       stockOperations,
       stockOperationsLimit,

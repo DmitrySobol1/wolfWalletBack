@@ -116,10 +116,20 @@ router.post('/rqst_to_transfer', async (req, res) => {
     if (!user) {
       throw new Error('не найден в бд');
     }
-
+    
     console.log('step 1', user);
 
     const fromUserNP = user._doc.nowpaymentid;
+
+    // найти TLG id юзера, которому переводим
+    const toUser = await UserModel.findOne({ nowpaymentid: adress });
+    if (!toUser) {
+      throw new Error('не найден в бд');
+    }
+
+    const toUserTlgid = toUser._doc.tlgid;
+
+
     
     console.log('step 1_1', fromUserNP);
 
@@ -168,6 +178,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
           tlgid,
           statusComission,
           qtyToTransfer,
+          toUserTlgid
         };
 
         item_id = await createRqstTransferToOtherUserModel(data);
@@ -194,6 +205,7 @@ router.post('/rqst_to_transfer', async (req, res) => {
         tlgid,
         statusComission,
         qtyToTransfer,
+        toUserTlgid
       };
 
       item_id = await createRqstTransferToOtherUserModel(data);
