@@ -104,6 +104,10 @@ const RqstStockLimitOrderSchema = new mongoose.Schema(
     isOperated: {
       type: Boolean, 
       default: false
+    },
+    isMessageSent:{
+      type: Boolean,
+      default: false
     }
 
 

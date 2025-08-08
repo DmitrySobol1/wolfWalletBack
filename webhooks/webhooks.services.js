@@ -343,7 +343,7 @@ export async function processWebhookStockLimit(payload) {
     const batch_id = payload.batch_withdrawal_id;
 
 
-    console.log('Статус=', payload.status.toLowerCase());
+    console.log('Статус=', status);
 
     if (status === 'finished') {
       const foundItem = await RqstStockLimitOrderModel.findOne({
@@ -355,6 +355,8 @@ export async function processWebhookStockLimit(payload) {
       }
 
       if (foundItem.isOperated == false) {
+
+
         const updatedItem = await RqstStockLimitOrderModel.findOneAndUpdate(
           { batch_withdrawal_id: batch_id },
           { $set: { status: 'CoinReceivedByStock', isOperated: true } }
@@ -379,6 +381,79 @@ export async function processWebhookStockLimit(payload) {
   } catch (err) {
     logger.error({
         fn_title:  'Ошибка в webhooks.services.js в функции processWebhookStockLimit',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
+    return;
+  }
+}
+
+
+
+
+// для обработки "хука возврата денег с биржи" (при отмене лимитного ордера) 
+export async function processWebhookStockLimitCancell(payload) {
+  try {
+    console.log('Обрабатываю:', payload);
+
+    const status = payload.payment_status?.toLowerCase();
+    const payment_id = payload.payment_id;
+
+
+    console.log('Статус=', status);
+
+    if (status === 'partially_paid') {
+      
+      const foundItem = await RqstStockLimitOrderModel.findOne({
+        trtCoinFromStockToNP_np_id: payment_id,
+      });
+
+      if (!foundItem) {
+        throw new Error('не нашел в БД RqstStockLimitOrderModel');
+      }
+
+      if (foundItem.isMessageSent == false) {
+
+      const { language, tlgid } = foundItem;
+      const type = 'cancellLimit';
+      const textToSendUser = ''
+
+      const tlgResponse = await sendTlgMessage(
+        tlgid,
+        language,
+        type,
+        textToSendUser
+      );
+
+      if (tlgResponse.status != 'ok') {
+        throw new Error('ошибка в функции sendTlgMessage ');
+      }
+
+
+      const updatedItem = await RqstStockLimitOrderModel.findOneAndUpdate(
+          { trtCoinFromStockToNP_np_id:  payment_id },
+          { $set: { status: 'cnl_finished', isMessageSent: true } }
+      );
+
+        if (!updatedItem) {
+          throw new Error(
+            'не изменилось значение в БД RqstStockMarketOrderModel'
+          );
+        }
+
+        console.log(
+          'из функции обработки вебхука: пришел хук partially_paid, значение isMessageSent поменял'
+        );
+        return;
+      }
+
+      console.log(
+        'ответ из функции обработки вебхука: пришел повторный хук partially_paid, ничего не менял!'
+      );
+    }
+  } catch (err) {
+    logger.error({
+        fn_title:  'Ошибка в webhooks.services.js в функции processWebhookStockLimitCancell',
         fn_message: err.message,
         fn_dataFromServer: err.response?.data
         });

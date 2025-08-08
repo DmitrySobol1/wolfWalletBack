@@ -13,6 +13,7 @@ import {
   getMinDeposit,
   getTokenFromNowPayment,
   makeWriteOff,
+  createPayAdress
 } from '../nowPayment/nowPayment.services.js';
 
 import UserModel from '../models/user.js';
@@ -20,6 +21,12 @@ import TradingPairsModel from '../models/tradingPairs.js';
 import RqstStockMarketOrderModel from '../models/rqstStockMarketOrder.js';
 import RqstStockLimitOrderModel from '../models/rqstStockLimitOrder.js';
 import ComissionStockMarketModel from '../models/comissionStockMarket.js';
+
+import {
+  getWithdrawalInfo,
+  transferInStock,
+  makeWithdrawFromStockToNp
+} from '../stockKukoin/kukoin.services.js';
 
 export const stockController = router;
 
@@ -334,6 +341,7 @@ router.get('/get_myOpenOrders', async (req, res) => {
         status: statusText,
         type: type,
         info: infoText,
+        id: item._id
       };
     });
 
@@ -739,3 +747,165 @@ router.post('/new_stockorder_limit', async (req, res) => {
     return res.json({ statusBE: 'notOk' });
   }
 });
+
+router.post('/cancel_limitorder', async (req, res) => {
+ 
+  const { order_id } = req.body
+
+  console.log('order to be cancelled = ', order_id )
+
+  // FIXME: проверить, если он уже не на исполнении и вернуть на фронт ответ
+
+
+  const findItem = await RqstStockLimitOrderModel.findOne({
+      _id: order_id,
+    });
+
+   
+   let  coin, amount, chain, coinToSendToNpFull, userNP, chainToSendToNp
+
+   if (findItem.type === 'buy'){
+    coin = findItem.coin2short
+    amount = findItem.amountBeReceivedByStock
+    chain = findItem.coin2chain
+    coinToSendToNpFull = findItem.coin2full
+    userNP = findItem.userNP
+    chainToSendToNp = findItem.coin2chain
+    
+   }
+
+   if (findItem.type === 'sell'){
+    coin = findItem.coin1short
+    amount = findItem.amountBeReceivedByStock
+    chain = findItem.coin1chain
+    coinToSendToNpFull = findItem.coin1full
+    userNP = findItem.userNP
+    chainToSendToNp = findItem.coin1chain
+   }
+
+
+   // получить число для округления
+    const getWithdrawalInfoResult = await getWithdrawalInfo(
+        coin,
+        chain
+    );
+   
+    console.log('до округления',amount,coin )
+
+    if (!getWithdrawalInfoResult ||getWithdrawalInfoResult.statusFn != 'ok' ) {
+             throw new Error('ошибка в функции getWithdrawalInfo');
+    }
+   
+    
+    const precision = Number(getWithdrawalInfoResult.precision);
+   
+    let newAmount
+
+    // .. округление вниз
+    const factor = Math.pow(10, precision);
+    newAmount = Math.floor(parseFloat(amount) * factor) / factor;
+   
+    console.log('после округления вниз =',newAmount, coin);
+
+    const tranferInStockresult = await transferInStock(
+            coin,
+            newAmount
+    );
+
+    if (!tranferInStockresult) {
+          throw new Error('ошибка в функции transferInStock');
+    }
+
+    console.log('tranferInStockresult', tranferInStockresult)
+
+    if (tranferInStockresult.statusFn == 'ok'){
+        const modelResp = await RqstStockLimitOrderModel.findOneAndUpdate(
+              { _id: order_id },
+              {
+                $set: {
+                  status: 'cnl_stockSentToMain',
+                  amountSentBackToNp: newAmount,
+                },
+              },
+              { new: true }
+            );
+
+
+       console.log('задержку в 5 сек - начал')     
+      // подождать 5 сек, чтобы монеты перевелись с Trade на Main      
+      // FIXME: 
+      
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 секунд
+      console.log('задержку в 5 сек - закончил')
+
+
+      const token = await getTokenFromNowPayment();
+      
+      if (!token) {
+        throw new Error('нет ответа от функции getTokenFromNowPayment');
+      }
+      
+      const getNpAdressResult = await createPayAdress(
+                token,
+                coinToSendToNpFull,    
+                newAmount,
+                userNP,           
+                'cancelLimit'         // TODO: возможно limitCNL - чтобы новый вебхук сделать в функции createPayAdress
+      );
+      
+      if (!getNpAdressResult) {
+             throw new Error('нет ответа от функции createPayAdress');
+      }
+      
+      
+      const adresssValue = getNpAdressResult.pay_address;
+      const idValue = getNpAdressResult.payment_id;
+      
+      const modelResp2 = await RqstStockLimitOrderModel.findOneAndUpdate(
+                { _id: order_id },
+                { $set: { trtCoinFromStockToNP_np_id: idValue } },
+                { new: true }
+      );
+      
+      if (!modelResp2) {
+                throw new Error('не записалосб в бд RqstStockLimitOrderModel');
+      }
+      
+              
+      
+      const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(
+                newAmount,
+                coin, 
+                adresssValue,
+                chainToSendToNp
+      );
+      
+      if (!makeWithdrawFromStockToNpResult) {
+               throw new Error('нет ответа от функции makeWithdrawFromStockToNp');
+      }
+      
+      const modelResp3 = await RqstStockLimitOrderModel.findOneAndUpdate(
+                { _id: order_id },
+                {
+                  $set: {
+                    trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
+                    status: 'cnl_sentToUser',
+                    amountSentBackToNp: newAmount,   //TODO:
+                  },
+                },
+                { new: true }
+      );
+      
+      if (!modelResp3) {
+                throw new Error('не записалось в бд RqstStockLimitOrderModel');
+      }
+      
+      console.log('step 16 | перевод с биржи на NP отправлен, id=',makeWithdrawFromStockToNpResult);
+
+    }
+
+
+
+})
+
+ 

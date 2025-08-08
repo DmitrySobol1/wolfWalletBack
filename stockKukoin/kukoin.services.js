@@ -373,7 +373,7 @@ export async function transferInStock(coin, amount) {
    
      else {
       console.log('средства отправлены с Trade на Main ');
-      return { statusFn: 'ok' };
+      return { statusFn: 'ok', trtid: response.data.data.orderId };
     }
   } catch (err) {
     logger.error({

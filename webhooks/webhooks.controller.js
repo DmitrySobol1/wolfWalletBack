@@ -9,7 +9,8 @@ import {
   processWebhookStock,
   processWebhookStockLimit,
   verifyNowPaymentsSignature,
-  processWebhookPayin
+  processWebhookPayin,
+  processWebhookStockLimitCancell
 } from './webhooks.services.js';
 
 export const webhooksController = router;
@@ -203,6 +204,54 @@ router.post('/webhook_forstock_limit', async (req, res) => {
 
 
 
+
+
+// для обработки "возврата денег с биржи" (при отмене лимитного ордере) (WEBHOOKADRESS_FORSTOCK_LIMIT_CANCELL в env)
+router.post('/webhook_forstock_limit_cancell', async (req, res) => {
+  try {
+    const payload = req.body;
+    const receivedSignature = req.headers['x-nowpayments-sig'];
+    const secretKey = process.env.IPN_SECRET_KEY;
+
+    // const payload = req.body;
+    console.log('Получен вебхук cancell limit order:', payload);
+
+    if (!receivedSignature) {
+      console.log('Отсутствует заголовок подписи');
+      throw new Error('отсутствует подпись в header');
+    }
+
+    const isValid = verifyNowPaymentsSignature(
+      payload,
+      receivedSignature,
+      secretKey
+    );
+    if (!isValid) {
+      console.log('Неверная подпись');
+      throw new Error('неверная подпись');
+    }
+
+    console.log('Подписи совпадают');
+
+    const status = payload.payment_status?.toLowerCase();
+    if (status == 'partially_paid') {
+      //TODO: добавить логику, если приходит reject - чтобы пользователю написать msg и вернуть средства с master на его аккаунт
+      await processWebhookStockLimitCancell(payload);
+
+      // FIXME:  Добавить send messge
+      
+    } else {
+      console.log('статус не finished, не обрабатываем');
+    }
+  } catch (err) {
+    logger.error({
+          title: 'Ошибка в /wh/webhook_forstock_limit_cancell, вебхук для обработки возврата денег с биржи при отмене лимит ордера', 
+          message: err.message,
+          dataFromServer: err.response?.data,
+          statusFromServer: err.response?.status,
+        }); 
+  }
+});
 
 
 

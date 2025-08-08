@@ -49,6 +49,7 @@ router.get('/test', async (req, res) => {
 router.get('/get_balance_for_pay_out', async (req, res) => {
   try {
     const tlgid = req.query.tlgid;
+    
 
     if (!tlgid) {
       throw new Error('нет параметра tlgid');

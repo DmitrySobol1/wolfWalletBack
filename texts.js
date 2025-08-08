@@ -96,6 +96,20 @@ export const TEXTS = {
     title: 'Informationen zu Krypto-Aktien:',
     text: 'limit-Order wurde ausgeführt.',
   }
+  },
+  cancellLimit: {
+    ru: {
+    title: 'Лимитный ордер отменен:',
+    text: 'средства разморозили, комиссия за отмену снята',
+  },
+  en: {
+    title: 'Limit order cancelled:',
+    text: 'funds unfrozen, cancellation fee waived',
+  },
+  de: {
+    title: 'Limit-Order storniert:',
+    text: 'die Gelder wurden freigegeben, die Stornierungsgebühr wurde erlassen.',
+  }
   }
 
 };

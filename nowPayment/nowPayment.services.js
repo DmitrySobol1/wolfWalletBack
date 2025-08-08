@@ -127,6 +127,10 @@ export async function createPayAdress(
     if (type == 'marketOrLimit') {
       callBackUrl = 'https://nowpayments.io'
     }
+    
+    if (type == 'cancelLimit') {
+      callBackUrl = process.env.WEBHOOKADRESS_FORSTOCK_LIMIT_CANCELL
+    }
 
     // 2. Формирование тела запроса
     const requestData = {
