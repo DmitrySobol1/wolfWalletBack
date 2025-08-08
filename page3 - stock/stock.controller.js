@@ -890,7 +890,7 @@ router.post('/cancel_limitorder', async (req, res) => {
                   $set: {
                     trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
                     status: 'cnl_sentToUser',
-                    amountSentBackToNp: newAmount,   //TODO:
+                    amountSentBackToNp: newAmount,  
                   },
                 },
                 { new: true }
