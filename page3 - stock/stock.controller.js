@@ -3,9 +3,7 @@ const router = Router();
 
 import axios from 'axios';
 
-
-
-import { logger } from '../middlewares/error-logger.js'
+import { logger } from '../middlewares/error-logger.js';
 
 import { getPrice } from '../stockKukoin/kukoin.services.js';
 
@@ -13,7 +11,7 @@ import {
   getMinDeposit,
   getTokenFromNowPayment,
   makeWriteOff,
-  createPayAdress
+  createPayAdress,
 } from '../nowPayment/nowPayment.services.js';
 
 import UserModel from '../models/user.js';
@@ -25,7 +23,7 @@ import ComissionStockMarketModel from '../models/comissionStockMarket.js';
 import {
   getWithdrawalInfo,
   transferInStock,
-  makeWithdrawFromStockToNp
+  makeWithdrawFromStockToNp,
 } from '../stockKukoin/kukoin.services.js';
 
 export const stockController = router;
@@ -43,14 +41,12 @@ router.get('/get_stock_pairs', async (req, res) => {
       data: pairs,
     });
   } catch (err) {
-    
-    
-     logger.error({
-              title: 'Error in endpoint /stock/get_stock_pairs', 
-              message: err.message,
-              dataFromServer: err.response?.data,
-              statusFromServer: err.response?.status,
-            });
+    logger.error({
+      title: 'Error in endpoint /stock/get_stock_pairs',
+      message: err.message,
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
 
     return res.json({ statusBE: 'notOk' });
   }
@@ -71,13 +67,12 @@ router.get('/get_ticker', async (req, res) => {
 
     return res.json(response.data);
   } catch (err) {
-    
     logger.error({
-              title: 'Error in endpoint /stock/get_ticker', 
-              message: err.message,
-              dataFromServer: err.response?.data,
-              statusFromServer: err.response?.status,
-            });
+      title: 'Error in endpoint /stock/get_ticker',
+      message: err.message,
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
 
     return res.json({ statusBE: 'notOk' });
   }
@@ -96,14 +91,12 @@ router.get('/get_ourComissionStockMarket', async (req, res) => {
 
     return res.json({ comission: comission.qty, statusFn: 'ok' });
   } catch (err) {
-    
-
     logger.error({
-              title: 'Error in endpoint /stock/get_ourComissionStockMarket', 
-              message: err.message,
-              dataFromServer: err.response?.data,
-              statusFromServer: err.response?.status,
-            });
+      title: 'Error in endpoint /stock/get_ourComissionStockMarket',
+      message: err.message,
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
 
     return res.json({ statusBE: 'notOk' });
   }
@@ -142,12 +135,11 @@ router.get('/get_minWithdrawNp', async (req, res) => {
     }
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint /stock/get_minWithdrawNp', 
+      title: 'Ошибка в endpoint /stock/get_minWithdrawNp',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
-    }); 
-
+    });
 
     return res.json({ statusBE: 'notOk' });
   }
@@ -190,7 +182,7 @@ router.get('/get_minDepositWithdrawStock', async (req, res) => {
     }
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint /get_minDepositWithdrawStock', 
+      title: 'Ошибка в endpoint /get_minDepositWithdrawStock',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -204,16 +196,15 @@ router.get('/get_minDepositNp', async (req, res) => {
     const { coin } = req.query;
 
     const response = await getMinDeposit(coin);
-    
-    
+
     if (!response) {
       throw new Error('нет ответа от функции getMinDeposit');
     }
 
     res.json({ result: response.data.min_amount });
   } catch (err) {
-     logger.error({
-      title: 'Ошибка в endpoint /get_minDepositNp', 
+    logger.error({
+      title: 'Ошибка в endpoint /get_minDepositNp',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -251,7 +242,7 @@ router.get('/get_myOpenOrders', async (req, res) => {
     }
 
     const limitOrders = await RqstStockLimitOrderModel.find({
-      status: { $ne: 'done' },
+      status: { $nin: ['done', 'cnl_finished'] },
       tlgid: tlgid,
     })
       .sort({ updatedAt: -1 })
@@ -341,7 +332,7 @@ router.get('/get_myOpenOrders', async (req, res) => {
         status: statusText,
         type: type,
         info: infoText,
-        id: item._id
+        id: item._id,
       };
     });
 
@@ -354,7 +345,7 @@ router.get('/get_myOpenOrders', async (req, res) => {
     });
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint stock/get_myOpenOrders', 
+      title: 'Ошибка в endpoint stock/get_myOpenOrders',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -499,7 +490,7 @@ router.get('/get_myDoneOrders', async (req, res) => {
     });
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint stock/get_myDoneOrders', 
+      title: 'Ошибка в endpoint stock/get_myDoneOrders',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -617,7 +608,7 @@ router.post('/new_stockorder_market', async (req, res) => {
     return res.json({ statusFn: 'saved' });
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint stock/new_stockorder_market', 
+      title: 'Ошибка в endpoint stock/new_stockorder_market',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -739,7 +730,7 @@ router.post('/new_stockorder_limit', async (req, res) => {
     return res.json({ statusFn: 'saved' });
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint stock/new_stockorder_limit', 
+      title: 'Ошибка в endpoint stock/new_stockorder_limit',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
@@ -748,164 +739,184 @@ router.post('/new_stockorder_limit', async (req, res) => {
   }
 });
 
+// для отмены лимитного ордера
 router.post('/cancel_limitorder', async (req, res) => {
- 
-  const { order_id } = req.body
+  try {
+    const { order_id } = req.body;
 
-  console.log('order to be cancelled = ', order_id )
+    console.log('order to be cancelled = ', order_id);
 
-  // FIXME: проверить, если он уже не на исполнении и вернуть на фронт ответ
-
-
-  const findItem = await RqstStockLimitOrderModel.findOne({
+    const findItem = await RqstStockLimitOrderModel.findOne({
       _id: order_id,
     });
 
-   
-   let  coin, amount, chain, coinToSendToNpFull, userNP, chainToSendToNp
-
-   if (findItem.type === 'buy'){
-    coin = findItem.coin2short
-    amount = findItem.amountBeReceivedByStock
-    chain = findItem.coin2chain
-    coinToSendToNpFull = findItem.coin2full
-    userNP = findItem.userNP
-    chainToSendToNp = findItem.coin2chain
-    
-   }
-
-   if (findItem.type === 'sell'){
-    coin = findItem.coin1short
-    amount = findItem.amountBeReceivedByStock
-    chain = findItem.coin1chain
-    coinToSendToNpFull = findItem.coin1full
-    userNP = findItem.userNP
-    chainToSendToNp = findItem.coin1chain
-   }
-
-
-   // получить число для округления
-    const getWithdrawalInfoResult = await getWithdrawalInfo(
-        coin,
-        chain
-    );
-   
-    console.log('до округления',amount,coin )
-
-    if (!getWithdrawalInfoResult ||getWithdrawalInfoResult.statusFn != 'ok' ) {
-             throw new Error('ошибка в функции getWithdrawalInfo');
+    if (!findItem) {
+      throw new Error('не найден user в RqstStockLimitOrderModel');
     }
-   
-    
+
+    // если статус new или coinSentToStock - то не даем отменить примерно 1 минуту
+    if (findItem.status == 'new' || findItem.status == 'coinSentToStock') {
+      console.log('только что разместил, деньги еще не дошли до биржы');
+      return res.json({ statusBE: 'just placed try in 1 minutes' });
+    }
+
+    // если уже в процесс отмены и деньги возвращаются с биржи на счет пользователя
+    if (
+      findItem.status == 'cnl_stockSentToMain' ||
+      findItem.status == 'cnl_sentToUser'
+    ) {
+      console.log('уже в процессе отмены');
+      return res.json({ statusBE: 'is being cancelling now' });
+    }
+
+    // если статус не равен CoinReceivedByStock, то ордер уже на исполнении и нельзя отменять
+    if (findItem.status != 'CoinReceivedByStock') {
+      console.log('нельзя отменять, уже на исполнении');
+      return res.json({ statusBE: 'cant cancell' });
+    }
+
+    let coin, amount, chain, coinToSendToNpFull, userNP, chainToSendToNp;
+
+    if (findItem.type === 'buy') {
+      coin = findItem.coin2short;
+      amount = findItem.amountBeReceivedByStock;
+      chain = findItem.coin2chain;
+      coinToSendToNpFull = findItem.coin2full;
+      userNP = findItem.userNP;
+      chainToSendToNp = findItem.coin2chain;
+    }
+
+    if (findItem.type === 'sell') {
+      coin = findItem.coin1short;
+      amount = findItem.amountBeReceivedByStock;
+      chain = findItem.coin1chain;
+      coinToSendToNpFull = findItem.coin1full;
+      userNP = findItem.userNP;
+      chainToSendToNp = findItem.coin1chain;
+    }
+
+    // получить число для округления
+    const getWithdrawalInfoResult = await getWithdrawalInfo(coin, chain);
+
+    console.log('до округления', amount, coin);
+
+    if (!getWithdrawalInfoResult || getWithdrawalInfoResult.statusFn != 'ok') {
+      throw new Error('ошибка в функции getWithdrawalInfo');
+    }
+
     const precision = Number(getWithdrawalInfoResult.precision);
-   
-    let newAmount
+
+    let newAmount;
 
     // .. округление вниз
     const factor = Math.pow(10, precision);
     newAmount = Math.floor(parseFloat(amount) * factor) / factor;
-   
-    console.log('после округления вниз =',newAmount, coin);
 
-    const tranferInStockresult = await transferInStock(
-            coin,
-            newAmount
-    );
+    console.log('после округления вниз =', newAmount, coin);
+
+    const tranferInStockresult = await transferInStock(coin, newAmount);
 
     if (!tranferInStockresult) {
-          throw new Error('ошибка в функции transferInStock');
+      throw new Error('ошибка в функции transferInStock');
     }
 
-    console.log('tranferInStockresult', tranferInStockresult)
+    console.log('tranferInStockresult', tranferInStockresult);
 
-    if (tranferInStockresult.statusFn == 'ok'){
-        const modelResp = await RqstStockLimitOrderModel.findOneAndUpdate(
-              { _id: order_id },
-              {
-                $set: {
-                  status: 'cnl_stockSentToMain',
-                  amountSentBackToNp: newAmount,
-                },
-              },
-              { new: true }
-            );
+    if (tranferInStockresult.statusFn == 'ok') {
+      const modelResp = await RqstStockLimitOrderModel.findOneAndUpdate(
+        { _id: order_id },
+        {
+          $set: {
+            status: 'cnl_stockSentToMain',
+            amountSentBackToNp: newAmount,
+          },
+        },
+        { new: true }
+      );
 
+      if (!modelResp) {
+        throw new Error('не обновил инфо в бд RqstStockLimitOrderModel ');
+      }
 
-       console.log('задержку в 5 сек - начал')     
-      // подождать 5 сек, чтобы монеты перевелись с Trade на Main      
-      // FIXME: 
-      
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 секунд
-      console.log('задержку в 5 сек - закончил')
+      console.log('задержку в 5 сек - начал');
+      // подождать 5 сек, чтобы монеты перевелись с Trade на Main
+      // FIXME:
 
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 секунд
+      console.log('задержку в 5 сек - закончил');
 
       const token = await getTokenFromNowPayment();
-      
+
       if (!token) {
         throw new Error('нет ответа от функции getTokenFromNowPayment');
       }
-      
+
       const getNpAdressResult = await createPayAdress(
-                token,
-                coinToSendToNpFull,    
-                newAmount,
-                userNP,           
-                'cancelLimit'         // TODO: возможно limitCNL - чтобы новый вебхук сделать в функции createPayAdress
+        token,
+        coinToSendToNpFull,
+        newAmount,
+        userNP,
+        'cancelLimit' // TODO: возможно limitCNL - чтобы новый вебхук сделать в функции createPayAdress
       );
-      
+
       if (!getNpAdressResult) {
-             throw new Error('нет ответа от функции createPayAdress');
+        throw new Error('нет ответа от функции createPayAdress');
       }
-      
-      
+
       const adresssValue = getNpAdressResult.pay_address;
       const idValue = getNpAdressResult.payment_id;
-      
+
       const modelResp2 = await RqstStockLimitOrderModel.findOneAndUpdate(
-                { _id: order_id },
-                { $set: { trtCoinFromStockToNP_np_id: idValue } },
-                { new: true }
+        { _id: order_id },
+        { $set: { trtCoinFromStockToNP_np_id: idValue } },
+        { new: true }
       );
-      
+
       if (!modelResp2) {
-                throw new Error('не записалосб в бд RqstStockLimitOrderModel');
+        throw new Error('не записалось в бд RqstStockLimitOrderModel');
       }
-      
-              
-      
+
       const makeWithdrawFromStockToNpResult = await makeWithdrawFromStockToNp(
-                newAmount,
-                coin, 
-                adresssValue,
-                chainToSendToNp
+        newAmount,
+        coin,
+        adresssValue,
+        chainToSendToNp
       );
-      
+
       if (!makeWithdrawFromStockToNpResult) {
-               throw new Error('нет ответа от функции makeWithdrawFromStockToNp');
+        throw new Error('нет ответа от функции makeWithdrawFromStockToNp');
       }
-      
+
       const modelResp3 = await RqstStockLimitOrderModel.findOneAndUpdate(
-                { _id: order_id },
-                {
-                  $set: {
-                    trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
-                    status: 'cnl_sentToUser',
-                    amountSentBackToNp: newAmount,  
-                  },
-                },
-                { new: true }
+        { _id: order_id },
+        {
+          $set: {
+            trtCoinFromStockToNP_stock_id: makeWithdrawFromStockToNpResult,
+            status: 'cnl_sentToUser',
+            amountSentBackToNp: newAmount,
+          },
+        },
+        { new: true }
       );
-      
+
       if (!modelResp3) {
-                throw new Error('не записалось в бд RqstStockLimitOrderModel');
+        throw new Error('не записалось в бд RqstStockLimitOrderModel');
       }
-      
-      console.log('step 16 | перевод с биржи на NP отправлен, id=',makeWithdrawFromStockToNpResult);
 
+      console.log(
+        'step 16 | перевод с биржи на NP отправлен, id=',
+        makeWithdrawFromStockToNpResult
+      );
+
+      return res.json({ statusBE: 'cancel received' });
     }
-
-
-
-})
-
- 
+  } catch (err) {
+    logger.error({
+      title: 'Ошибка в endpoint stock/cancel_limitorder',
+      message: err.message,
+      dataFromServer: err.response?.data,
+      statusFromServer: err.response?.status,
+    });
+    return res.json({ statusBE: 'notOk' });
+  }
+});
