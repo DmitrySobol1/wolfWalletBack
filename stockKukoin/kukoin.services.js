@@ -421,15 +421,20 @@ export async function getStockGlass(pair){
     // console.log ('stock_glass=', response.data.data.bids[1])
 
     const responseBids= response.data.data.bids
+    const responseAsks= response.data.data.asks
+    
     const arrayBids = []
+    const arrayAsks = []
 
     for (let i=1; i<=5; i++){
       arrayBids.push(responseBids[i])
+      arrayAsks.push(responseAsks[i])
+
     }  
 
     // console.log('arrayBids' , arrayBids)
 
-    return (arrayBids)
+    return ({bid: arrayBids, ask: arrayAsks})
     
     if (response.data.code == 200000){
       return response.data.data
