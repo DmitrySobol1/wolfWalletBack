@@ -409,3 +409,41 @@ export async function getStats(pair){
   }
 
 }
+
+
+
+//  биржевой стакан
+export async function getStockGlass(pair){
+  try{ 
+
+    const response = await axios.get(`https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=${pair}`);
+    
+    // console.log ('stock_glass=', response.data.data.bids[1])
+
+    const responseBids= response.data.data.bids
+    const arrayBids = []
+
+    for (let i=1; i<=5; i++){
+      arrayBids.push(responseBids[i])
+    }  
+
+    // console.log('arrayBids' , arrayBids)
+
+    return (arrayBids)
+    
+    if (response.data.code == 200000){
+      return response.data.data
+    } else {
+      throw new Error('нет ответа от биржи')
+    }
+
+  } catch(err) {
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > getStats',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
+    return;
+  }
+
+}
