@@ -384,3 +384,28 @@ export async function transferInStock(coin, amount) {
     return;
   }
 }
+
+
+export async function getStats(pair){
+  try{ 
+
+    const response = await axios.get(`https://api.kucoin.com/api/v1/market/stats?symbol=${pair}`);
+
+  
+    
+    if (response.data.code == 200000){
+      return response.data.data
+    } else {
+      throw new Error('нет ответа от биржи')
+    }
+
+  } catch(err) {
+    logger.error({
+        fn_title:  'Ошибка в функции kukoin.services.js > getStats',
+        fn_message: err.message,
+        fn_dataFromServer: err.response?.data
+        });
+    return;
+  }
+
+}
