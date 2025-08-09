@@ -418,7 +418,9 @@ export async function getStockGlass(pair){
 
     const response = await axios.get(`https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=${pair}`);
     
-    // console.log ('stock_glass=', response.data.data.bids[1])
+    if (response.data.code !== '200000') {
+      throw new Error('Ошибка от KuCoin');
+    }
 
     const responseBids= response.data.data.bids
     const responseAsks= response.data.data.asks
@@ -432,19 +434,11 @@ export async function getStockGlass(pair){
 
     }  
 
-    // console.log('arrayBids' , arrayBids)
-
     return ({bid: arrayBids, ask: arrayAsks})
     
-    if (response.data.code == 200000){
-      return response.data.data
-    } else {
-      throw new Error('нет ответа от биржи')
-    }
-
   } catch(err) {
     logger.error({
-        fn_title:  'Ошибка в функции kukoin.services.js > getStats',
+        fn_title:  'Ошибка в функции kukoin.services.js > getStockGlass',
         fn_message: err.message,
         fn_dataFromServer: err.response?.data
         });

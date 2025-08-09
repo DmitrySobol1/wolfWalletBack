@@ -1,10 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
 
-import http from 'http';
-import { WebSocketServer } from 'ws';
-import { fetchPrice } from './page3 - stock/fetch-price.js';
-
 
 import { walletController } from './page1 - wallet/wallet.controller.js'
 import { payinController } from './page1 - wallet/payin-page/payin.controller.js'
@@ -72,69 +68,14 @@ app.use(errorLogger)
 
 
 
-// Создаём HTTP сервер из Express
-const server = http.createServer(app);
-
-// Создаём WebSocket сервер, без собственного порта
-const wss = new WebSocketServer({ noServer: true });
-
-wss.on('connection', async (ws) => {
-  console.log('WS клиент подключился');
-  ws.send('сообщение от сервера');
-
-  const priceData = await fetchPrice()
-  // console.log(priceData)
-  const message = JSON.stringify({priceData });
-  ws.send(message);
-
-  setInterval(async ()=> {
-    const priceData = await fetchPrice()
-  console.log('new price=', priceData)
-  const message = JSON.stringify({priceData });
-  ws.send(message);
-  }, 2500)
-
-  ws.on('message', (message) => {
-    console.log('Получено сообщение:', message.toString());
-    // Отвечаем клиенту
-    ws.send('сообщение от сервера');
-  });
-
-  ws.on('close', () => {
-    console.log('WS клиент отключился');
-  });
-});
-
-// Интегрируем WebSocket с HTTP сервером
-server.on('upgrade', (request, socket, head) => {
-  // Фильтр по URL, если хочешь принимать WS только на определённом пути, например:
-  if (request.url === '/ws') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } else {
-    // Закрываем сокет, если путь не совпадает
-    socket.destroy();
-  }
-});
-
-
-// Запускаем сервер на одном порту (например, 4444)
-server.listen(PORT, () => {
-  console.log(`HTTP и WS сервер запущен на порту ${PORT}`);
-});
-
-
-
-
 
 // FIXME: вернуть 
-// app.listen(PORT, (err) => {
-//   if (err) {
-//     return console.log(err);
-//   }
-//   console.log('server has been started');
-// });
+app.listen(PORT, (err) => {
+  if (err) {
+    return console.log(err);
+  }
+  console.log('server has been started');
+});
 
 
 // FIXME: не удалять, не нашел, где используется на фронте

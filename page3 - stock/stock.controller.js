@@ -927,11 +927,15 @@ router.get('/get24_stats', async (req, res) => {
   try {
     const { pair } = req.query;
 
-    console.log('PAIR=', pair)
+    // console.log('PAIR=', pair)
 
     const response = await getStats(pair);
 
-    console.log('response=',  response)
+    if (!response) {
+        throw new Error('ошибка в функции getStats');
+    }
+
+    // console.log('response=',  response)
 
     let color = 'red';
     let percent;
@@ -968,33 +972,18 @@ router.get('/get_stock_glass', async (req, res) => {
   try {
     const { pair } = req.query;
 
-    console.log('PAIR=', pair)
-
     const response = await getStockGlass(pair);
 
-    console.log('response=',  response)
+    if (!response) {
+        throw new Error('ошибка в функции getStockGlass');
+    }
 
     return res.json(response)
 
-    let color = 'red';
-    let percent;
-    let value;
-    let operator = ''
-
-    const { changePrice, changeRate, volValue } = response;
-
-    if (Number(changePrice) >= 0) {
-      color = 'green';
-      operator = '+'
-    }
-
-    percent = (Number(changeRate) * 100).toFixed(2);
-    value = Number(volValue).toFixed(2);
-
-    return res.json({ color:color, price: changePrice, percent:percent, value:value, operator:operator });
+    
   } catch (err) {
     logger.error({
-      title: 'Ошибка в endpoint stock/get24_stats',
+      title: 'Ошибка в endpoint stock/get_stock_glass',
       message: err.message,
       dataFromServer: err.response?.data,
       statusFromServer: err.response?.status,
